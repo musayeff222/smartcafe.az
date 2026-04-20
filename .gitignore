@@ -1,0 +1,60 @@
+# ===== Node / React (front) =====
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+front/build/
+front/.history/
+front/coverage/
+
+# ===== PHP / Laravel (api) =====
+/api/vendor/
+/api/node_modules/
+/api/public/hot
+/api/public/storage
+/api/storage/*.key
+/api/storage/debugbar/
+/api/storage/framework/cache/data/*
+/api/storage/framework/sessions/*
+/api/storage/framework/testing/*
+/api/storage/framework/views/*
+/api/storage/logs/*
+!/api/storage/**/.gitignore
+/api/bootstrap/cache/*.php
+
+# ===== Env dosyaları (sır içerir) =====
+.env
+.env.*
+!.env.example
+!.env.*.example
+api/.env
+api/.env.backup
+api/.env.production
+front/.env
+front/.env.local
+front/.env.*.local
+front/.env.development.local
+front/.env.test.local
+front/.env.production.local
+
+# ===== IDE / OS =====
+.idea/
+.vscode/
+.vs/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ===== Build / Cache =====
+dist/
+build/
+.cache/
+.parcel-cache/
+*.log
+
+# ===== Diğer =====
+terminals/
+.history/

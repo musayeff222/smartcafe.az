@@ -1,0 +1,204 @@
+ const handlePrint = async () => {
+    try {
+      // API-dən masaların siyahısını al
+      const response = await axios.get(`${base_url}/tables`, {
+        ...getHeaders(),
+      });
+      const tables = response.data.tables;
+
+      // Məsələn seçilmiş masanı tap (adı ilə və ya id ilə)
+      const currentTable = tables.find((t) => t.name === tableName);
+
+      // API-dən gələn açılış vaxtı
+      const book_time = currentTable?.book_time;
+
+      console.log("API book_time:", book_time);
+
+      const printContent = `
+    <html>
+      <head>
+        <title>Print Order</title>
+        <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .invoice {
+            width: 100mm; /* Fatura kağıdı genişliği */
+            margin: 5px auto;
+            padding: 1px;
+            
+            box-sizing: border-box;
+            font-size: 10px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .header h1 {
+          text-transform: uppercase;
+      }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+        }
+        .table th, .table td {
+            border: 1px solid #000;
+            padding: 3px;
+            text-align: left;
+        }
+        .table th {
+            background-color: #f4f4f4;
+        }
+        .total {
+            text-align: right;
+            font-size: 17px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .cem{
+          font-size: 18px;
+        }
+      .mb {
+  margin-bottom: 20px;
+  font-size: 12px !important;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+}
+        .print-button {
+            display: block;
+            margin: 10px auto;
+            padding: 5px 15px;
+            background-color: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .print-button:hover {
+            background-color: #218838;
+        }
+        @media print {
+            .print-button {
+                display: none; /* Yazdırmada buton gizlenir */
+            }
+            body {
+                margin: 0;
+            }
+            .table th, .table td {
+                border: 1px solid black; /* Yazdırmada net çerçeve */
+            }
+            .table th {
+                background-color: #ffffff !important; 
+                -webkit-print-color-adjust: exact;
+            }
+            .invoice {
+              border: none; /* Yazdırma sırasında gereksiz dış çerçeve kaldırılır */
+            }
+       
+
+             
+        }
+    </style>
+      </head>
+      <body>
+      <div class="invoice">
+      <div class="header">
+      <h1> ${restoranName}</h1>
+          <h2> ${tableName}</h2>
+          <div class="mb">
+          <span>Masanın açılış Tarixi:${book_time}</span>
+         
+        </div>
+         
+     
+      </div>
+      <table class="table">
+          <thead>
+              <tr>
+                  <th>No</th>
+                  <th>Sifarişin adı</th>
+                  <th>Miq.</th>
+                  <th>Set.</th>
+                  <th>Qiymət</th>
+                  <th>Məbləğ</th>
+              </tr>
+          </thead>
+          <tbody>
+            
+              ${orderDetails
+                ?.map(
+                  (item, index) => `
+                    <tr key="${item.id}">
+                    <td>${index + 1}</td>
+                    <td>
+  ${item.name}
+  ${
+    item.type === "set"
+      ? `<ul style="margin:0;padding-left:10px;">
+          ${item.items
+            .map(
+              (sub) =>
+                `<li style="list-style-type:none;">${sub.stock_name} (${sub.quantity})</li>`
+            )
+            .join("")}
+        </ul>`
+      : item?.count
+      ? `<br/>${item.unit || ""}`
+      : ""
+  }
+</td>
+
+                  
+                      <td>${
+                        item.count ? item.count * item.quantity : item.quantity
+                      }</td>
+                      <td>${item?.count ? item.quantity : 0}</td>
+                      <td>${(item.price / item.quantity).toFixed(2)} </td>
+                      <td>${(
+                        item.quantity *
+                        (item.price / item.quantity)
+                      ).toFixed(2)} </td>
+                    </tr>
+                  `
+                )
+                .join("")}
+          </tbody>
+      </table>
+      <div class="total">
+          <div>
+              <p class="cem">CƏM: ${totalPrice.total.toFixed(2)} Azn</p>
+              ${
+                totalPrice?.total_prepare && totalPrice.total_prepare !== 0
+                  ? `<p>Artıq ödənilib: ${totalPrice.total_prepare} AZN</p>
+                     <p>Qalıq: ${totalPrice.kalan.toFixed(2)} Azn</p>`
+                  : ""
+              }
+            </div>
+            <strong>${fis}</strong>
+      </div>
+  </div>
+  
+      </body>
+    </html>
+  `;
+
+      const printWindow = window.open("", "", "width=800,height=600");
+      printWindow.document.open();
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    } catch (error) {
+      console.error("API error:", error);
+    }
+  };
