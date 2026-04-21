@@ -86,6 +86,7 @@ const [isPsModalOpen, setIsPsModalOpen] = useState(false);
 
   const [orderId, setOrderId] = useState(null);
   const [productSearch, setProductSearch] = useState("");
+  const [mobileView, setMobileView] = useState("menu");
 
 const toCents = (amount) => Math.round(parseFloat(amount) * 100);
 
@@ -1479,8 +1480,12 @@ const kicthenDataSend = () => {
           content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi "
         />
       </Helmet>
-      <section className="min-h-[calc(100vh-56px)] bg-slate-50 px-3 sm:px-4 py-3 sm:py-4 flex flex-col lg:flex-row gap-3 sm:gap-4 overflow-x-hidden">
-        <div className="w-full lg:w-[52%] xl:w-[50%] 2xl:w-[48%] flex flex-col gap-3">
+      <section className="h-[calc(100vh-56px)] bg-slate-50 flex flex-col lg:flex-row overflow-hidden">
+        <div
+          className={`${
+            mobileView === "order" ? "flex" : "hidden"
+          } lg:flex w-full lg:w-[48%] xl:w-[45%] 2xl:w-[42%] flex-col gap-3 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4 pb-24 lg:pb-4 lg:border-r lg:border-slate-200 bg-slate-50`}
+        >
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-3">
             <div className="flex items-center gap-2 mb-2">
               <Link
@@ -1697,8 +1702,12 @@ const kicthenDataSend = () => {
           />
         </div>
 
-        <div className="w-full flex-1 flex flex-col gap-3 min-w-0">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-3 space-y-2.5 lg:sticky lg:top-14 z-10">
+        <div
+          className={`${
+            mobileView === "menu" ? "flex" : "hidden"
+          } lg:flex w-full lg:flex-1 flex-col min-w-0 overflow-hidden`}
+        >
+          <div className="flex-shrink-0 bg-white border-b border-slate-200 px-3 sm:px-4 pt-3 sm:pt-4 pb-3 space-y-2.5 z-10">
             <div className="relative">
               <Search
                 size={16}
@@ -1759,7 +1768,8 @@ const kicthenDataSend = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2.5 sm:gap-3">
+          <div className="flex-1 overflow-y-auto px-3 sm:px-4 pt-3 pb-24 lg:pb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3">
             {(() => {
               const q = productSearch.trim().toLowerCase();
               const list = showSets ? stockSets : stocks;
@@ -1819,9 +1829,52 @@ const kicthenDataSend = () => {
                 );
               });
             })()}
+            </div>
           </div>
         </div>
       </section>
+
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-[0_-4px_12px_rgba(15,23,42,0.08)] grid grid-cols-2 pb-[env(safe-area-inset-bottom)]">
+        <button
+          type="button"
+          onClick={() => setMobileView("menu")}
+          className={`flex flex-col items-center justify-center gap-0.5 py-2.5 text-xs font-semibold transition ${
+            mobileView === "menu"
+              ? "text-indigo-600"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+          aria-pressed={mobileView === "menu"}
+        >
+          <Utensils size={20} />
+          <span>Menyu</span>
+          {mobileView === "menu" && (
+            <span className="absolute top-0 left-1/4 right-1/2 h-0.5 bg-indigo-600 rounded-full" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileView("order")}
+          className={`relative flex flex-col items-center justify-center gap-0.5 py-2.5 text-xs font-semibold transition ${
+            mobileView === "order"
+              ? "text-indigo-600"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+          aria-pressed={mobileView === "order"}
+        >
+          <div className="relative">
+            <ShoppingBag size={20} />
+            {orderDetails && orderDetails.length > 0 && (
+              <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+                {orderDetails.length}
+              </span>
+            )}
+          </div>
+          <span>Sifariş</span>
+          {mobileView === "order" && (
+            <span className="absolute top-0 left-1/2 right-1/4 h-0.5 bg-indigo-600 rounded-full" />
+          )}
+        </button>
+      </nav>
 
       {oncedenodePopop && (
         <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">

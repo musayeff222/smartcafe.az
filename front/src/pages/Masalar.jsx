@@ -345,19 +345,17 @@ const Masalar = () => {
                   <button
                     key={table.id}
                     onClick={() => handleTableNavigation(table.id)}
-                    className="group relative text-left bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden p-3 sm:p-4 min-h-[140px] sm:min-h-[160px] flex flex-col"
+                    style={{ backgroundColor: accentColor }}
+                    className="group relative text-left rounded-2xl border border-black/10 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden p-3 sm:p-4 min-h-[140px] sm:min-h-[160px] flex flex-col text-white"
                   >
-                    <span
-                      className="absolute top-0 left-0 right-0 h-1.5"
-                      style={{ backgroundColor: accentColor }}
-                    />
+                    <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/20" />
 
-                    <div className="flex items-start justify-between gap-2 mt-1">
+                    <div className="relative flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <h4 className="text-base sm:text-lg font-bold text-slate-800 truncate">
+                        <h4 className="text-base sm:text-lg font-bold text-white truncate drop-shadow-sm">
                           {table.name}
                         </h4>
-                        <StatusBadge occupied={occupied} color={accentColor} />
+                        <StatusBadge occupied={occupied} />
                       </div>
                       {role !== "waiter" && (
                         <button
@@ -366,7 +364,7 @@ const Masalar = () => {
                             setShowDetail(table.id);
                             setTableItemData(table);
                           }}
-                          className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                          className="shrink-0 p-1.5 rounded-lg text-white/80 hover:bg-white/20 hover:text-white transition"
                           aria-label="Masa seçimləri"
                         >
                           <MoreVertical size={16} />
@@ -374,24 +372,24 @@ const Masalar = () => {
                       )}
                     </div>
 
-                    <div className="mt-auto pt-3">
+                    <div className="relative mt-auto pt-3">
                       {hasTotal ? (
                         <div>
-                          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+                          <div className="text-[10px] uppercase tracking-wider text-white/80 font-semibold">
                             Ümumi
                           </div>
-                          <div className="text-lg sm:text-xl font-bold text-slate-800 leading-tight">
+                          <div className="text-lg sm:text-xl font-bold text-white leading-tight drop-shadow-sm">
                             ₼ {Number(table.total_price).toFixed(2)}
                           </div>
                         </div>
                       ) : (
-                        <div className="text-sm text-slate-400 font-medium">
+                        <div className="text-sm text-white/90 font-medium">
                           Boşdur
                         </div>
                       )}
 
                       {table.book_time && (
-                        <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-100">
+                        <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/20 text-white border border-white/30 backdrop-blur-sm">
                           <Clock size={11} />
                           {table.book_time}
                         </div>
@@ -463,12 +461,9 @@ const GroupTab = ({ active, onClick, label, count }) => (
   </button>
 );
 
-const StatusBadge = ({ occupied, color }) => (
-  <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-    <span
-      className="w-1.5 h-1.5 rounded-full"
-      style={{ backgroundColor: color }}
-    />
+const StatusBadge = ({ occupied }) => (
+  <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-white/90">
+    <span className="w-1.5 h-1.5 rounded-full bg-white" />
     {occupied ? "Dolu" : "Boş"}
   </div>
 );
