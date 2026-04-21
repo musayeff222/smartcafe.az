@@ -1,21 +1,21 @@
 # ============================================================
 # SmartCafe Frontend (React SPA) — Hostinger Apache .htaccess
-# Bu dosya `npm run build` sonrası build/ klasörüne otomatik
-# kopyalanır (public/ içindeki her şey build'e aktarılır).
+# Domain: smartcafe.az (API ayrı subdomain'de: api.smartcafe.az)
+# Bu dosya `npm run build` sonrası build/ klasörüne kopyalanır.
 # ============================================================
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
 
-    # HTTPS'e zorla (Hostinger'da SSL aktifse)
+    # HTTPS'e zorla
     RewriteCond %{HTTPS} !=on
     RewriteCond %{HTTP:X-Forwarded-Proto} !https
     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-    # /api/* istekleri React Router'a DÜŞMESİN (Laravel'e gitsin)
-    RewriteRule ^api(/.*)?$ - [L]
-    RewriteRule ^storage(/.*)?$ - [L]
+    # www varsa non-www'ye çek (tercihe göre değiştir)
+    RewriteCond %{HTTP_HOST} ^www\.smartcafe\.az$ [NC]
+    RewriteRule ^ https://smartcafe.az%{REQUEST_URI} [L,R=301]
 
     # Var olan dosya/dizinlere dokunma
     RewriteCond %{REQUEST_FILENAME} -f [OR]
@@ -37,6 +37,15 @@
     ExpiresByType image/webp "access plus 1 year"
     ExpiresByType font/woff2 "access plus 1 year"
     ExpiresDefault "access plus 1 hour"
+</IfModule>
+
+# index.html cache'lenmesin (deploy sonrası eski versiyon kalmasın)
+<IfModule mod_headers.c>
+    <FilesMatch "index\.html$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
 </IfModule>
 
 # Gzip sıkıştırma
