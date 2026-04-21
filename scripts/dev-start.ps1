@@ -1,122 +1,123 @@
-﻿# ============================================================
-# Start local dev servers (Laravel + React)
-# ============================================================
-# KullanД±m:
-#   .\scripts\dev-start.ps1              в†’ iki terminal aГ§ar: API (8000) + frontend (3000)
-#   .\scripts\dev-start.ps1 -Only api    в†’ sadece backend
-#   .\scripts\dev-start.ps1 -Only front  в†’ sadece frontend
-# ============================================================
-
-param(
-    [ValidateSet("all","api","front")]
+﻿param(
+    [ValidateSet("all","api","front","mysql","stop")]
     [string]$Only = "all"
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $apiDir   = Join-Path $repoRoot "api"
 $frontDir = Join-Path $repoRoot "front"
 
-# Check prerequisites
-if ($Only -ne "front") {
-    $php = Get-Command php -ErrorAction SilentlyContinue
-    if (-not $php) {
-        Write-Host "PHP not found in PATH." -ForegroundColor Red
-        Write-Host "Install Laragon (https://laragon.org) or add PHP to PATH." -ForegroundColor Yellow
-        exit 1
-    }
-}
-if ($Only -ne "api") {
-    $node = Get-Command node -ErrorAction SilentlyContinue
-    if (-not $node) {
-        Write-Host "Node.js not found." -ForegroundColor Red
-        exit 1
-    }
+$mysqlDir    = "C:\laragon\bin\mysql\mysql-8.4.3-winx64"
+$mysqlConfig = "C:\laragon\etc\my.ini"
+$phpDir      = "C:\laragon\bin\php\php-8.3.30-Win32-vs16-x64"
+
+function TestPort($port) {
+    $tcp = New-Object System.Net.Sockets.TcpClient
+    $tcp.SendTimeout = 1000
+    try { $tcp.Connect("127.0.0.1", $port); $tcp.Close(); return $true } catch { return $false }
 }
 
-# Ensure .env.local exists for frontend (localhost URLs)
-if ($Only -ne "api") {
-    $envLocal = Join-Path $frontDir ".env.local"
-    if (-not (Test-Path $envLocal)) {
-        Write-Host "Creating front/.env.local with localhost URLs..." -ForegroundColor Yellow
-        @"
-# Local development env (git-ignored)
-REACT_APP_API_BASE_URL=http://127.0.0.1:8000/api
-REACT_APP_IMG_BASE_URL=http://127.0.0.1:8000/storage
-REACT_APP_DOMAIN_URL=http://localhost:3000
-"@ | Set-Content -Path $envLocal -Encoding UTF8
-    }
+function StopPort($port) {
+    try {
+        $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+        if ($conn) { Stop-Process -Id $conn.OwningProcess -Force -ErrorAction SilentlyContinue }
+    } catch {}
 }
 
-# Ensure api/.env exists locally
-if ($Only -ne "front") {
-    $apiEnv = Join-Path $apiDir ".env"
-    if (-not (Test-Path $apiEnv)) {
-        Write-Host "Creating api/.env for local dev..." -ForegroundColor Yellow
-        $apiKeyPlaceholder = "base64:" + [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 255 }))
-        @"
-APP_NAME=SmartCafe
-APP_ENV=local
-APP_KEY=$apiKeyPlaceholder
-APP_DEBUG=true
-APP_TIMEZONE='Asia/Baku'
-APP_URL=http://127.0.0.1:8000
+# ---------- STOP MODE ----------
+if ($Only -eq "stop") {
+    Write-Host "Stopping dev servers..." -ForegroundColor Yellow
+    StopPort 3000
+    StopPort 8000
+    Get-Process node, php -ErrorAction SilentlyContinue | Where-Object { $_.StartTime -gt (Get-Date).AddHours(-24) } | Stop-Process -Force -ErrorAction SilentlyContinue
+    Write-Host "API and Frontend stopped (MySQL still running)" -ForegroundColor Green
+    Write-Host "To also stop MySQL: Get-Process mysqld | Stop-Process -Force" -ForegroundColor Gray
+    exit 0
+}
 
-APP_LOCALE=en
-APP_FALLBACK_LOCALE=en
-
-APP_MAINTENANCE_DRIVER=file
-BCRYPT_ROUNDS=12
-LOG_CHANNEL=stack
-LOG_STACK=single
-LOG_LEVEL=debug
-
-# Laragon default MySQL: user=root, no password
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=restoran
-DB_USERNAME=root
-DB_PASSWORD=
-
-SESSION_DRIVER=database
-SESSION_LIFETIME=120
-SESSION_ENCRYPT=false
-SESSION_PATH=/
-SESSION_DOMAIN=null
-
-SANCTUM_STATEFUL_DOMAINS=localhost:3000,127.0.0.1:3000
-
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-CORS_SUPPORTS_CREDENTIALS=true
-
-BROADCAST_CONNECTION=log
-FILESYSTEM_DISK=local
-QUEUE_CONNECTION=sync
-CACHE_STORE=file
-
-MAIL_MAILER=log
-"@ | Set-Content -Path $apiEnv -Encoding UTF8
-
-        Write-Host "  Running artisan key:generate..." -ForegroundColor Yellow
-        Push-Location $apiDir
-        php artisan key:generate --force
-        Pop-Location
+# ---------- MYSQL ----------
+if ($Only -eq "all" -or $Only -eq "mysql") {
+    Write-Host "`n===== MySQL =====" -ForegroundColor Cyan
+    if (TestPort 3306) {
+        Write-Host "  MySQL already running on port 3306" -ForegroundColor Green
+    } else {
+        if (-not (Test-Path "$mysqlDir\bin\mysqld.exe")) {
+            Write-Host "  ERROR: mysqld.exe not found at $mysqlDir" -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "  Starting MySQL..." -ForegroundColor Yellow
+        Start-Process -FilePath "$mysqlDir\bin\mysqld.exe" -ArgumentList "--defaults-file=$mysqlConfig" -WindowStyle Hidden
+        for ($i = 0; $i -lt 30; $i++) {
+            Start-Sleep -Seconds 1
+            if (TestPort 3306) { break }
+        }
+        if (TestPort 3306) {
+            Write-Host "  MySQL ready on 127.0.0.1:3306" -ForegroundColor Green
+        } else {
+            Write-Host "  MySQL did not start. Check C:\laragon\data\mysql-error.log" -ForegroundColor Red
+            exit 1
+        }
     }
 }
 
-# Launch
+# ---------- API ----------
 if ($Only -eq "all" -or $Only -eq "api") {
-    Write-Host "Starting API at http://127.0.0.1:8000 ..." -ForegroundColor Green
-    Start-Process powershell -ArgumentList "-NoExit","-Command","cd '$apiDir'; Write-Host 'API: http://127.0.0.1:8000' -ForegroundColor Cyan; php artisan serve"
+    Write-Host "`n===== Laravel API =====" -ForegroundColor Cyan
+
+    if (TestPort 8000) {
+        Write-Host "  Port 8000 already in use - killing old process" -ForegroundColor Yellow
+        StopPort 8000
+        Start-Sleep -Seconds 2
+    }
+
+    if (-not (Test-Path "$apiDir\.env")) {
+        Write-Host "  WARNING: api/.env missing - run initial setup first" -ForegroundColor Red
+    }
+
+    Write-Host "  Opening new window on http://127.0.0.1:8000 ..." -ForegroundColor Green
+    $apiCmd = "`$env:Path = '$phpDir;' + `$env:Path; cd '$apiDir'; Write-Host ''; Write-Host '===== Laravel API =====' -ForegroundColor Green; Write-Host 'http://127.0.0.1:8000' -ForegroundColor Cyan; Write-Host 'Close this window to stop' -ForegroundColor Yellow; Write-Host ''; php artisan serve"
+    Start-Process powershell -ArgumentList "-NoExit","-Command",$apiCmd
     Start-Sleep -Seconds 2
 }
 
+# ---------- FRONTEND ----------
 if ($Only -eq "all" -or $Only -eq "front") {
-    Write-Host "Starting Frontend at http://localhost:3000 ..." -ForegroundColor Green
-    Start-Process powershell -ArgumentList "-NoExit","-Command","cd '$frontDir'; Write-Host 'Frontend: http://localhost:3000' -ForegroundColor Cyan; npm start"
+    Write-Host "`n===== React Frontend =====" -ForegroundColor Cyan
+
+    if (TestPort 3000) {
+        Write-Host "  Port 3000 already in use - killing old process" -ForegroundColor Yellow
+        StopPort 3000
+        Start-Sleep -Seconds 2
+    }
+
+    if (-not (Test-Path "$frontDir\.env.local")) {
+        Write-Host "  Creating front/.env.local with localhost URLs..." -ForegroundColor Yellow
+        @"
+REACT_APP_API_BASE_URL=http://127.0.0.1:8000/api
+REACT_APP_IMG_BASE_URL=http://127.0.0.1:8000/storage
+REACT_APP_DOMAIN_URL=http://localhost:3000
+"@ | Set-Content -Path "$frontDir\.env.local" -Encoding UTF8
+    }
+
+    Write-Host "  Opening new window on http://localhost:3000 ..." -ForegroundColor Green
+    Write-Host "  (first compile takes ~30-60 sec)" -ForegroundColor Yellow
+    $frontCmd = "cd '$frontDir'; Write-Host ''; Write-Host '===== React Frontend =====' -ForegroundColor Green; Write-Host 'http://localhost:3000' -ForegroundColor Cyan; Write-Host 'Close this window to stop' -ForegroundColor Yellow; Write-Host ''; npm start"
+    Start-Process powershell -ArgumentList "-NoExit","-Command",$frontCmd
 }
 
-Write-Host ""
-Write-Host "Two PowerShell windows should be opening." -ForegroundColor Yellow
-Write-Host "Close them to stop the servers." -ForegroundColor Yellow
+# ---------- FINAL STATUS ----------
+if ($Only -eq "all") {
+    Write-Host "`n==================================================" -ForegroundColor Green
+    Write-Host "  DEV SERVERS STARTING" -ForegroundColor Green
+    Write-Host "==================================================" -ForegroundColor Green
+    Write-Host "  Frontend:  http://localhost:3000" -ForegroundColor Cyan
+    Write-Host "  API:       http://127.0.0.1:8000" -ForegroundColor Cyan
+    Write-Host "  MySQL:     127.0.0.1:3306 (background)" -ForegroundColor Cyan
+    Write-Host "==================================================" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  Browser otomatik acilacak birkac saniye icinde." -ForegroundColor Yellow
+    Write-Host "  React window'da 'Compiled successfully!' yazisini bekleyin." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Durdurmak icin:  .\scripts\dev-start.ps1 -Only stop" -ForegroundColor Gray
+}
