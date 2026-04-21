@@ -27,6 +27,7 @@ import Expenses from "./pages/expenses.jsx";
 import StockSetGenel from "./pages/StockSetGenel.jsx";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import SecurityVaultUnlockHost from "./components/SecurityVaultUnlockHost";
 import { useSelector, useDispatch } from "react-redux";
 import { tick } from"./redux/timerSlice.js";
 
@@ -85,6 +86,7 @@ const App = () => {
   return (
     <div>
       <ToastContainer />
+      <SecurityVaultUnlockHost />
       {showHeader && <Header />}
       <Routes>
         <Route path="/" element={<Login />} />

@@ -24,7 +24,7 @@ if (-not (Test-Path $localDumpDir)) {
 }
 
 Step "Dump on server"
-$remoteCmd = "bash -c 'set -e; DBP=`$(grep ^DB_PASSWORD= /var/www/laravel-app/.env | cut -d= -f2 | tr -d `"`"); DBU=`$(grep ^DB_USERNAME= /var/www/laravel-app/.env | cut -d= -f2); DBN=`$(grep ^DB_DATABASE= /var/www/laravel-app/.env | cut -d= -f2); mysqldump --single-transaction --quick --lock-tables=false -u `$DBU -p`"`$DBP`" `$DBN > /tmp/$dumpFile; du -h /tmp/$dumpFile'"
+$remoteCmd = "bash -c 'set -e; DBP=`$(grep ^DB_PASSWORD= /var/www/laravel-app/.env | cut -d= -f2 | tr -d `"`"); DBU=`$(grep ^DB_USERNAME= /var/www/laravel-app/.env | cut -d= -f2); DBN=`$(grep ^DB_DATABASE= /var/www/laravel-app/.env | cut -d= -f2); mysqldump --single-transaction --quick --lock-tables=false --default-character-set=utf8mb4 --set-charset -u `$DBU -p`"`$DBP`" `$DBN > /tmp/$dumpFile; du -h /tmp/$dumpFile'"
 ssh smartcafe-vps $remoteCmd
 if ($LASTEXITCODE -ne 0) {
     Warn "Dump failed"
@@ -80,11 +80,12 @@ if ($Import) {
     & $mysqlPath @createArgs
 
     $importStart = Get-Date
-    $importArgs = @("-u", $LocalUser)
-    if ($LocalPassword) { $importArgs += "-p$LocalPassword" }
-    $importArgs += $LocalDb
 
-    Get-Content $localDumpPath | & $mysqlPath @importArgs
+    # PowerShell'in Get-Content'i varsayılan ANSI ile oxuyur və UTF-8 datanı korrupte edir.
+    # cmd /c ilə binary redirect edirik, beləcə mysql.exe fayldakı utf8mb4 baytları birbaşa alır.
+    $pwdArg = if ($LocalPassword) { "-p$LocalPassword " } else { "" }
+    $cmdLine = "`"$mysqlPath`" --default-character-set=utf8mb4 -u $LocalUser $pwdArg$LocalDb < `"$localDumpPath`""
+    & cmd /c $cmdLine
     if ($LASTEXITCODE -eq 0) {
         $importElapsed = [math]::Round(((Get-Date) - $importStart).TotalSeconds, 1)
         Ok "Imported to local DB '$LocalDb' in ${importElapsed}s"

@@ -4,8 +4,6 @@ import HesapKes from '../HesapKes';
 
 // Dəyişiklik: prepaidAmount prop-u əlavə edildi
 const HesabKesAll = ({ setHesabKes, tableName, orderId, totalAmount, orderStocks, prepaidAmount }) => {
-  console.log("orderStocks", orderStocks);
-  
   return (
     <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">
       <div className="w-full max-w-3xl bg-white rounded-lg shadow-lg overflow-hidden border border-gray-300 relative">
@@ -22,12 +20,13 @@ const HesabKesAll = ({ setHesabKes, tableName, orderId, totalAmount, orderStocks
           
         </div>
         <div className="p-4 max-h-[80vh] overflow-y-auto">
-          {/* Dəyişiklik: prepaidAmount HesapKes-ə ötürüldü */}
+          {/* Dəyişiklik: prepaidAmount + setHesabKes HesapKes-ə ötürüldü */}
           <HesapKes 
             orderStocks={orderStocks} 
             orderId={orderId} 
             totalAmount={totalAmount} 
             prepaidAmount={prepaidAmount} 
+            setHesabKes={setHesabKes}
           />
         </div>
       </div>

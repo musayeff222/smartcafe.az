@@ -30,6 +30,51 @@ const getHeaders = () => ({
   },
 });
 
+// WCAG luminance-ə əsasən fon rəngi üçün oxunaqlı mətn rəngi qaytarır.
+// Açıq fon → tünd yazı; tünd fon → açıq yazı.
+const getContrastPalette = (hex) => {
+  const fallback = {
+    text: "#ffffff",
+    textMuted: "rgba(255,255,255,0.85)",
+    textSubtle: "rgba(255,255,255,0.70)",
+    badgeBg: "rgba(255,255,255,0.20)",
+    badgeBorder: "rgba(255,255,255,0.35)",
+    iconHover: "rgba(255,255,255,0.20)",
+    iconColor: "rgba(255,255,255,0.85)",
+    overlay: "linear-gradient(135deg, rgba(255,255,255,0.10), rgba(0,0,0,0.20))",
+  };
+  if (!hex || typeof hex !== "string") return fallback;
+  const h = hex.replace("#", "").trim();
+  if (h.length !== 3 && h.length !== 6) return fallback;
+  const norm =
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h;
+  const r = parseInt(norm.substring(0, 2), 16);
+  const g = parseInt(norm.substring(2, 4), 16);
+  const b = parseInt(norm.substring(4, 6), 16);
+  if ([r, g, b].some((n) => Number.isNaN(n))) return fallback;
+  // Perceived luminance (YIQ)
+  const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+  const isLight = luminance > 160;
+  if (isLight) {
+    return {
+      text: "#0f172a", // slate-900
+      textMuted: "rgba(15,23,42,0.85)",
+      textSubtle: "rgba(15,23,42,0.65)",
+      badgeBg: "rgba(15,23,42,0.10)",
+      badgeBorder: "rgba(15,23,42,0.20)",
+      iconHover: "rgba(15,23,42,0.10)",
+      iconColor: "rgba(15,23,42,0.70)",
+      overlay: "linear-gradient(135deg, rgba(255,255,255,0.25), rgba(0,0,0,0.05))",
+    };
+  }
+  return fallback;
+};
+
 const Masalar = () => {
   const [masaType, setMasaType] = useState(
     Number(localStorage.getItem("masaType")) || 0
@@ -336,6 +381,7 @@ const Masalar = () => {
                 const accentColor = occupied
                   ? tableColors.booked
                   : tableColors.empty;
+                const palette = getContrastPalette(accentColor);
                 const hasTotal =
                   table.total_price !== undefined &&
                   table.total_price !== null &&
@@ -345,17 +391,26 @@ const Masalar = () => {
                   <button
                     key={table.id}
                     onClick={() => handleTableNavigation(table.id)}
-                    style={{ backgroundColor: accentColor }}
-                    className="group relative text-left rounded-2xl border border-black/10 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden p-3 sm:p-4 min-h-[140px] sm:min-h-[160px] flex flex-col text-white"
+                    style={{
+                      backgroundColor: accentColor,
+                      color: palette.text,
+                    }}
+                    className="group relative text-left rounded-2xl border border-black/10 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden p-3 sm:p-4 min-h-[140px] sm:min-h-[160px] flex flex-col"
                   >
-                    <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/20" />
+                    <span
+                      className="pointer-events-none absolute inset-0"
+                      style={{ background: palette.overlay }}
+                    />
 
                     <div className="relative flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <h4 className="text-base sm:text-lg font-bold text-white truncate drop-shadow-sm">
+                        <h4
+                          className="text-base sm:text-lg font-bold truncate"
+                          style={{ color: palette.text }}
+                        >
                           {table.name}
                         </h4>
-                        <StatusBadge occupied={occupied} />
+                        <StatusBadge occupied={occupied} palette={palette} />
                       </div>
                       {role !== "waiter" && (
                         <button
@@ -364,7 +419,16 @@ const Masalar = () => {
                             setShowDetail(table.id);
                             setTableItemData(table);
                           }}
-                          className="shrink-0 p-1.5 rounded-lg text-white/80 hover:bg-white/20 hover:text-white transition"
+                          className="shrink-0 p-1.5 rounded-lg transition"
+                          style={{ color: palette.iconColor }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              palette.iconHover;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              "transparent";
+                          }}
                           aria-label="Masa seçimləri"
                         >
                           <MoreVertical size={16} />
@@ -375,21 +439,39 @@ const Masalar = () => {
                     <div className="relative mt-auto pt-3">
                       {hasTotal ? (
                         <div>
-                          <div className="text-[10px] uppercase tracking-wider text-white/80 font-semibold">
+                          <div
+                            className="text-[10px] uppercase tracking-wider font-semibold"
+                            style={{ color: palette.textMuted }}
+                          >
                             Ümumi
                           </div>
-                          <div className="text-lg sm:text-xl font-bold text-white leading-tight drop-shadow-sm">
+                          <div
+                            className="text-lg sm:text-xl font-bold leading-tight"
+                            style={{ color: palette.text }}
+                          >
                             ₼ {Number(table.total_price).toFixed(2)}
                           </div>
                         </div>
                       ) : (
-                        <div className="text-sm text-white/90 font-medium">
+                        <div
+                          className="text-sm font-medium"
+                          style={{ color: palette.textMuted }}
+                        >
                           Boşdur
                         </div>
                       )}
 
                       {table.book_time && (
-                        <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/20 text-white border border-white/30 backdrop-blur-sm">
+                        <div
+                          className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md backdrop-blur-sm"
+                          style={{
+                            backgroundColor: palette.badgeBg,
+                            borderWidth: 1,
+                            borderStyle: "solid",
+                            borderColor: palette.badgeBorder,
+                            color: palette.text,
+                          }}
+                        >
                           <Clock size={11} />
                           {table.book_time}
                         </div>
@@ -461,9 +543,15 @@ const GroupTab = ({ active, onClick, label, count }) => (
   </button>
 );
 
-const StatusBadge = ({ occupied }) => (
-  <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-white/90">
-    <span className="w-1.5 h-1.5 rounded-full bg-white" />
+const StatusBadge = ({ occupied, palette }) => (
+  <div
+    className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider"
+    style={{ color: palette?.textMuted || "rgba(255,255,255,0.9)" }}
+  >
+    <span
+      className="w-1.5 h-1.5 rounded-full"
+      style={{ backgroundColor: palette?.text || "#ffffff" }}
+    />
     {occupied ? "Dolu" : "Boş"}
   </div>
 );

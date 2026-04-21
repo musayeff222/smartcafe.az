@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { toast } from "react-toastify";
 import AccessDenied from "./AccessDenied";
 import { base_url } from "../api/index";
 import { useDispatch, useSelector } from "react-redux";
@@ -16,10 +17,9 @@ const getHeaders = () => ({
   },
 });
 
-function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0 }) {
+function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHesabKes }) {
   const { id } = useParams();
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   const [isCariMusteriSelected, setIsCariMusteriSelected] = useState(false);
   const [isParcaParcaOde, setIsParcaParcaOde] = useState(false);
@@ -32,6 +32,7 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0 }) {
   const [showCashModal, setShowCashModal] = useState(false);
   const [alinanMebleg, setAlinanMebleg] = useState("");
   const [accessDenied, setAccessDenied] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { allItems, orders } = useSelector((state) => state.stocks);
 
@@ -169,17 +170,17 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0 }) {
     if (event?.preventDefault) event.preventDefault();
 
     if (discountedTotal <= 0) {
-      alert("İndirimli məbləğ sıfır və ya mənfi ola bilməz!");
+      toast.warn("İndirimli məbləğ sıfır və ya mənfi ola bilməz!", { position: "top-center" });
       return;
     }
 
     if (selectedPaymentType === "parca-ode" && sum.some((amount) => amount <= 0)) {
-      alert("Bütün hissələr üçün etibarlı məbləğlər daxil edin.");
+      toast.warn("Bütün hissələr üçün etibarlı məbləğlər daxil edin.", { position: "top-center" });
       return;
     }
 
     if (selectedPaymentType === "musteriye-aktar" && !selectedCustomerId) {
-      alert('Zəhmət olmasa "Cari müştəriyə köçür" üçün müştəri seçin.');
+      toast.warn('Zəhmət olmasa "Cari müştəriyə köçür" üçün müştəri seçin.', { position: "top-center" });
       return;
     }
 
@@ -222,25 +223,48 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0 }) {
 
     // 🛑 Nağd ödəniş zamanı məbləğ yoxlaması (forceSubmit = bypass)
     if (!forceSubmit && selectedPaymentType === "pesin" && parseFloat(alinanMebleg || 0) < discountedTotal) {
-      alert("Müştəridən alınan məbləğ kifayət etmir!");
+      toast.warn("Müştəridən alınan məbləğ kifayət etmir!", { position: "top-center" });
       return;
     }
 
+    if (isSubmitting) return; // ikiqat submit qorumasi
+    setIsSubmitting(true);
     try {
       await axios.post(
         `${base_url}/order/${orders?.[0]?.order_id || orderId}/payments`,
         paymentData,
         getHeaders()
       );
-      alert("Ödəniş uğurla icra olundu.");
-      navigate("/masalar");
-      window.location.reload();
+
+      toast.success("Ödəniş uğurla icra olundu", {
+        position: "top-center",
+        autoClose: 1200,
+      });
+
+      // Masa ilə bağlı localStorage açarlarını təmizlə (PS timer və s.)
+      try {
+        localStorage.removeItem(`table_${id}_isExpired`);
+        localStorage.removeItem(`table_${id}_endTime`);
+        localStorage.removeItem(`masa_siparis_${id}_openPsModal`);
+        localStorage.removeItem(`masa_siparis_${id}_openPsSettings`);
+      } catch (_) {}
+
+      // Modal bağlansın ki, ağ ekran yaranmasın
+      if (typeof setHesabKes === "function") setHesabKes(false);
+
+      // Tək, etibarlı redirect — navigate + reload kombinasiyası əvəzinə
+      setTimeout(() => {
+        window.location.href = "/masalar";
+      }, 600);
     } catch (error) {
+      setIsSubmitting(false);
       if (error?.response?.status === 403 && error?.response?.data?.message === "Forbidden") {
         setAccessDenied(true);
       } else {
         console.error("Error submitting payment:", error);
-        alert("Ödənişi emal edərkən xəta baş verdi.");
+        toast.error("Ödənişi emal edərkən xəta baş verdi", {
+          position: "top-center",
+        });
       }
     }
   };
@@ -420,9 +444,10 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0 }) {
         {/* Hesab kəs (submit) */}
         <button
           type="submit"
-          className="block w-[calc(100%-32px)] bg-sky-600 font-medium mx-4 mb-3 py-2 px-4 rounded text-white hover:bg-sky-700 transition"
+          disabled={isSubmitting}
+          className="block w-[calc(100%-32px)] bg-sky-600 font-medium mx-4 mb-3 py-2 px-4 rounded text-white hover:bg-sky-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Hesab kəs
+          {isSubmitting ? "İcra olunur..." : "Hesab kəs"}
         </button>
 
         {/* Qəbz Çap Et */}

@@ -460,7 +460,7 @@ function GunlukKasa() {
 
   return (
     <>
-      <PasswordScreen />
+      <PasswordScreen category="kassa" />
       <Helmet>
         <title> Kassa | Smartcafe</title>
         <meta

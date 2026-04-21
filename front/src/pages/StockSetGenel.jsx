@@ -257,7 +257,7 @@ function Stok() {
 
   return (
     <>
-      <ScreenPassword />
+      <ScreenPassword category="anbar" />
       <Helmet>
         <title>Anbar | Smartcafe</title>
         <meta

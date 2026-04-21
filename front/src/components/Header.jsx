@@ -15,6 +15,7 @@ import {
   Wallet,
   Settings,
   ChevronDown,
+  ChevronRight,
   LogOut,
   Package,
   Truck,
@@ -48,6 +49,24 @@ const Header = ({ token, logOut }) => {
   const [role, setRole] = useState(localStorage.getItem("role") || "");
   const [formData, setFormData] = useState({ logo: null, name: "" });
   const [backupRunning, setBackupRunning] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState(() => {
+    try {
+      const saved = localStorage.getItem("sidebar_expanded_groups");
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  const toggleGroup = (id) => {
+    setExpandedGroups((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try {
+        localStorage.setItem("sidebar_expanded_groups", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
 
   const tanimRef = useRef(null);
   const profRef = useRef(null);
@@ -63,6 +82,50 @@ const Header = ({ token, logOut }) => {
     setMobileTanimOpen(false);
     setProfDropShow(false);
     setTanimDropShow(false);
+  }, [location.pathname]);
+
+  // Cari URL hansı qrupa aiddirsə onu avtomatik açıq saxla
+  useEffect(() => {
+    const activeGroupIds = [];
+    [
+      {
+        id: "anbar",
+        paths: ["/stok", "/material", "/stocksadd"],
+      },
+      {
+        id: "heyet",
+        paths: ["/personel-tanimlari", "/couriers"],
+      },
+      {
+        id: "nizamlama",
+        paths: ["/masa-tanimlari", "/genel-ayarlar"],
+      },
+      {
+        id: "maliyye",
+        paths: ["/expenses"],
+      },
+    ].forEach((g) => {
+      if (g.paths.some((p) => location.pathname.startsWith(p))) {
+        activeGroupIds.push(g.id);
+      }
+    });
+    if (activeGroupIds.length) {
+      setExpandedGroups((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        activeGroupIds.forEach((id) => {
+          if (!next[id]) {
+            next[id] = true;
+            changed = true;
+          }
+        });
+        if (!changed) return prev;
+        try {
+          localStorage.setItem("sidebar_expanded_groups", JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+    }
   }, [location.pathname]);
 
   const fetchSettings = async () => {
@@ -214,16 +277,46 @@ const Header = ({ token, logOut }) => {
     );
   }
 
-  const tanimItems = [
-    { to: "/stok", label: "Anbara Məhsul", icon: <Package size={15} /> },
-    { to: "/couriers", label: "Kuryer Qeydiyyatı", icon: <Truck size={15} /> },
-    { to: "/masa-tanimlari", label: "Masa Nizamlamaları", icon: <Table2 size={15} /> },
-    { to: "/personel-tanimlari", label: "İşçi Qeydiyyatı", icon: <UserCog size={15} /> },
-    { to: "/genel-ayarlar", label: "Nizamlamalar", icon: <SlidersHorizontal size={15} /> },
-    { to: "/material", label: "Xammal", icon: <Boxes size={15} /> },
-    { to: "/expenses", label: "Xərclər", icon: <Banknote size={15} /> },
-    { to: "/stocksadd", label: "Setlər", icon: <Layers size={15} /> },
+  const tanimGroups = [
+    {
+      id: "anbar",
+      label: "Anbar və Məhsul",
+      icon: <Boxes size={15} />,
+      items: [
+        { to: "/stok", label: "Anbara Məhsul", icon: <Package size={15} /> },
+        { to: "/material", label: "Xammal", icon: <Boxes size={15} /> },
+        { to: "/stocksadd", label: "Setlər", icon: <Layers size={15} /> },
+      ],
+    },
+    {
+      id: "heyet",
+      label: "Heyət və Kuryer",
+      icon: <Users size={15} />,
+      items: [
+        { to: "/personel-tanimlari", label: "İşçi Qeydiyyatı", icon: <UserCog size={15} /> },
+        { to: "/couriers", label: "Kuryer Qeydiyyatı", icon: <Truck size={15} /> },
+      ],
+    },
+    {
+      id: "nizamlama",
+      label: "Nizamlamalar",
+      icon: <SlidersHorizontal size={15} />,
+      items: [
+        { to: "/masa-tanimlari", label: "Masa Nizamlamaları", icon: <Table2 size={15} /> },
+        { to: "/genel-ayarlar", label: "Ümumi Nizamlamalar", icon: <Settings size={15} /> },
+      ],
+    },
+    {
+      id: "maliyye",
+      label: "Maliyyə",
+      icon: <Wallet size={15} />,
+      items: [
+        { to: "/expenses", label: "Xərclər", icon: <Banknote size={15} /> },
+      ],
+    },
   ];
+
+  const allTanimItems = tanimGroups.flatMap((g) => g.items);
 
   return (
     <>
@@ -280,7 +373,7 @@ const Header = ({ token, logOut }) => {
                 <button
                   onClick={() => setTanimDropShow((v) => !v)}
                   className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                    tanimItems.some((i) => isActive(i.to))
+                    allTanimItems.some((i) => isActive(i.to))
                       ? "bg-indigo-50 text-indigo-700"
                       : "text-slate-600 hover:bg-slate-100"
                   }`}
@@ -295,22 +388,56 @@ const Header = ({ token, logOut }) => {
                   />
                 </button>
                 {tanimDropShow && (
-                  <div className="absolute left-0 mt-1.5 w-64 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-50">
-                    {tanimItems.map((item) => (
-                      <Link
-                        key={item.to}
-                        to={item.to}
-                        onClick={() => setTanimDropShow(false)}
-                        className={`flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-50 transition ${
-                          isActive(item.to)
-                            ? "text-indigo-700 bg-indigo-50/60"
-                            : "text-slate-700"
-                        }`}
-                      >
-                        <span className="text-slate-400">{item.icon}</span>
-                        <span>{item.label}</span>
-                      </Link>
-                    ))}
+                  <div className="absolute left-0 mt-1.5 w-72 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-50 max-h-[70vh] overflow-y-auto">
+                    {tanimGroups.map((group) => {
+                      const isOpen = !!expandedGroups[group.id];
+                      const hasActive = group.items.some((i) => isActive(i.to));
+                      return (
+                        <div key={group.id} className="px-1">
+                          <button
+                            onClick={() => toggleGroup(group.id)}
+                            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-semibold transition ${
+                              hasActive
+                                ? "text-indigo-700"
+                                : "text-slate-700 hover:bg-slate-50"
+                            }`}
+                            aria-expanded={isOpen}
+                          >
+                            <span className="text-slate-500">{group.icon}</span>
+                            <span className="flex-1 text-left">{group.label}</span>
+                            <ChevronRight
+                              size={14}
+                              className={`transition-transform duration-200 text-slate-400 ${
+                                isOpen ? "rotate-90" : ""
+                              }`}
+                            />
+                          </button>
+                          <div
+                            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                              isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                            }`}
+                          >
+                            <div className="pl-3 ml-3 border-l border-slate-200 my-1 space-y-0.5">
+                              {group.items.map((item) => (
+                                <Link
+                                  key={item.to}
+                                  to={item.to}
+                                  onClick={() => setTanimDropShow(false)}
+                                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition ${
+                                    isActive(item.to)
+                                      ? "bg-indigo-50 text-indigo-700 font-medium"
+                                      : "text-slate-600 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <span className="text-slate-400">{item.icon}</span>
+                                  <span>{item.label}</span>
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -468,6 +595,7 @@ const Header = ({ token, logOut }) => {
                   <button
                     onClick={() => setMobileTanimOpen((v) => !v)}
                     className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    aria-expanded={mobileTanimOpen}
                   >
                     <Settings size={17} />
                     <span>Tənimlər</span>
@@ -478,24 +606,68 @@ const Header = ({ token, logOut }) => {
                       }`}
                     />
                   </button>
-                  {mobileTanimOpen && (
-                    <div className="mt-1 ml-2 border-l-2 border-slate-100 pl-2 space-y-0.5">
-                      {tanimItems.map((item) => (
-                        <Link
-                          key={item.to}
-                          to={item.to}
-                          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${
-                            isActive(item.to)
-                              ? "bg-indigo-50 text-indigo-700"
-                              : "text-slate-600 hover:bg-slate-50"
-                          }`}
-                        >
-                          <span className="text-slate-400">{item.icon}</span>
-                          <span>{item.label}</span>
-                        </Link>
-                      ))}
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                      mobileTanimOpen
+                        ? "max-h-[600px] opacity-100 mt-1"
+                        : "max-h-0 opacity-0"
+                    }`}
+                  >
+                    <div className="ml-2 pl-2 border-l-2 border-slate-100 space-y-1">
+                      {tanimGroups.map((group) => {
+                        const isOpen = !!expandedGroups[group.id];
+                        const hasActive = group.items.some((i) => isActive(i.to));
+                        return (
+                          <div key={group.id}>
+                            <button
+                              onClick={() => toggleGroup(group.id)}
+                              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-semibold transition ${
+                                hasActive
+                                  ? "text-indigo-700 bg-indigo-50/40"
+                                  : "text-slate-700 hover:bg-slate-50"
+                              }`}
+                              aria-expanded={isOpen}
+                            >
+                              <span className="text-slate-500">{group.icon}</span>
+                              <span className="flex-1 text-left">
+                                {group.label}
+                              </span>
+                              <ChevronRight
+                                size={14}
+                                className={`transition-transform duration-200 text-slate-400 ${
+                                  isOpen ? "rotate-90" : ""
+                                }`}
+                              />
+                            </button>
+                            <div
+                              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                                isOpen
+                                  ? "max-h-96 opacity-100"
+                                  : "max-h-0 opacity-0"
+                              }`}
+                            >
+                              <div className="pl-3 ml-3 border-l border-slate-200 my-1 space-y-0.5">
+                                {group.items.map((item) => (
+                                  <Link
+                                    key={item.to}
+                                    to={item.to}
+                                    className={`flex items-center gap-2 px-2.5 py-2 rounded-md text-sm transition ${
+                                      isActive(item.to)
+                                        ? "bg-indigo-50 text-indigo-700 font-medium"
+                                        : "text-slate-600 hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    <span className="text-slate-400">{item.icon}</span>
+                                    <span>{item.label}</span>
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
             </nav>

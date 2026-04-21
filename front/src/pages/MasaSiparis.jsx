@@ -29,6 +29,8 @@ import {
   CreditCard,
   ShoppingBag,
   Utensils,
+  ChevronRight,
+  ChevronUp,
 } from "lucide-react";
 import PsModal from "../components/PsModal";
 import PaymentSummary from '../components/masasiparis/PaymentSummary';
@@ -47,6 +49,7 @@ function MasaSiparis() {
   const [urunType, setUrunType] = useState(0); // Default to "Hamısı"
   const [stockGroups, setStockGroups] = useState([]);
   const [stocks, setStocks] = useState([]);
+  const [isStocksLoading, setIsStocksLoading] = useState(false);
 
   const [tableName, setTableName] = useState(""); // Default table name
   const [totalPrice, setTotalPrice] = useState({}); // Default total price as a number
@@ -87,6 +90,26 @@ const [isPsModalOpen, setIsPsModalOpen] = useState(false);
   const [orderId, setOrderId] = useState(null);
   const [productSearch, setProductSearch] = useState("");
   const [mobileView, setMobileView] = useState("menu");
+  const [isGroupsExpanded, setIsGroupsExpanded] = useState(() => {
+    try {
+      return localStorage.getItem("masa_siparis_groups_expanded") === "1";
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const toggleGroupsExpanded = () => {
+    setIsGroupsExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(
+          "masa_siparis_groups_expanded",
+          next ? "1" : "0"
+        );
+      } catch (e) {}
+      return next;
+    });
+  };
 
 const toCents = (amount) => Math.round(parseFloat(amount) * 100);
 
@@ -647,8 +670,40 @@ const handlePsTotalBlur = () => {
   }, [id, refreshFetch]);
 
   useEffect(() => {
-    fetchStocks(urunType);
+    const controller = new AbortController();
+    setIsStocksLoading(true);
+    (async () => {
+      try {
+        const response = await axios.get(`${base_url}/stocks`, {
+          ...getHeaders(),
+          params: urunType === 0 ? {} : { stock_group_id: urunType },
+          signal: controller.signal,
+        });
+        setStocks(response.data);
+      } catch (err) {
+        if (
+          axios.isCancel?.(err) ||
+          err?.name === "CanceledError" ||
+          err?.name === "AbortError" ||
+          err?.code === "ERR_CANCELED"
+        ) {
+          return;
+        }
+        if (
+          err?.response?.status === 403 &&
+          err?.response?.data?.message ===
+            "User does not belong to any  active restaurant."
+        ) {
+          setActiveUser(true);
+        } else {
+          console.error("Error loading stocks:", err);
+        }
+      } finally {
+        setIsStocksLoading(false);
+      }
+    })();
     localStorage.setItem("urunType", urunType);
+    return () => controller.abort();
   }, [urunType]);
 
   const handleAddStock = async (stockId, selectedProduct = null) => {
@@ -1722,19 +1777,38 @@ const kicthenDataSend = () => {
               />
             </div>
 
-            <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1">
+            <div
+              className={`gap-1.5 -mx-1 px-1 pb-1 scroll-smooth ${
+                isGroupsExpanded
+                  ? "flex flex-wrap"
+                  : "flex flex-nowrap overflow-x-auto overflow-y-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              }`}
+              style={!isGroupsExpanded ? { touchAction: "pan-x" } : undefined}
+            >
               <button
                 onClick={() => {
                   setShowSets(false);
                   setUrunType(0);
+                  toggleGroupsExpanded();
                 }}
-                className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition border ${
+                className={`whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition border ${
                   urunType === 0 && !showSets
                     ? "bg-indigo-600 border-indigo-600 text-white shadow"
                     : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
+                aria-expanded={isGroupsExpanded}
+                aria-label={
+                  isGroupsExpanded
+                    ? "Kateqoriyaları yığ"
+                    : "Bütün kateqoriyaları göstər"
+                }
               >
                 Hamısı
+                {isGroupsExpanded ? (
+                  <ChevronUp size={14} className="shrink-0" />
+                ) : (
+                  <ChevronRight size={14} className="shrink-0" />
+                )}
               </button>
               <button
                 onClick={() => {
@@ -1768,8 +1842,18 @@ const kicthenDataSend = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-3 sm:px-4 pt-3 pb-24 lg:pb-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3">
+          <div className="flex-1 overflow-y-auto px-3 sm:px-4 pt-3 pb-24 lg:pb-4 relative">
+            {isStocksLoading && (
+              <div className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-indigo-600 text-white text-xs font-medium shadow-lg flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                Yüklənir...
+              </div>
+            )}
+            <div
+              className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 transition-opacity duration-150 ${
+                isStocksLoading ? "opacity-50" : "opacity-100"
+              }`}
+            >
             {(() => {
               const q = productSearch.trim().toLowerCase();
               const list = showSets ? stockSets : stocks;

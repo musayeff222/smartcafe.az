@@ -2,12 +2,11 @@ import React, { useState } from "react";
 import axios from "axios";
 import { base_url } from "../api";
 
-function UpdateRestaurantTimes() {
+function UpdateRestaurantTimes({ embedded = false }) {
   const [openTime, setOpenTime] = useState("09:00");
   const [closeTime, setCloseTime] = useState("22:00");
   const [message, setMessage] = useState("");
 
-  // 15 dakikalık aralıklarla zaman seçenekleri oluşturma
   const generateTimeOptions = () => {
     const options = [];
     for (let h = 0; h < 24; h++) {
@@ -22,7 +21,6 @@ function UpdateRestaurantTimes() {
 
   const timeOptions = generateTimeOptions();
 
-  // Token ve diğer başlıkları almak için fonksiyon
   const getHeaders = () => ({
     Authorization: `Bearer ${localStorage.getItem("token")}`,
     "Content-Type": "application/json",
@@ -31,7 +29,6 @@ function UpdateRestaurantTimes() {
 
   const updateTimes = async () => {
     const url = `${base_url}/restaurant/times`;
-
     const data = {
       open_time: openTime,
       close_time: closeTime,
@@ -39,28 +36,33 @@ function UpdateRestaurantTimes() {
 
     try {
       const response = await axios.put(url, data, { headers: getHeaders() });
-      console.log("API Response",response.data);
       setMessage(response.data.message);
     } catch (error) {
-      console.error(error);
       setMessage(
-        error.response?.data?.message || "Hata oluştu: Güncelleme başarısız."
+        error.response?.data?.message || "Yeniləmə alınmadı."
       );
     }
   };
 
-  return (
-    <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-        Restoran İş Saatlarını Güncelle
-      </h1>
+  const fieldClass =
+    "mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20";
 
-      <label className="block mb-4">
-        <span className="text-gray-700">Açılış Saati:</span>
+  const inner = (
+    <>
+      <h2
+        className={`font-bold text-slate-800 ${
+          embedded ? "text-base sm:text-lg" : "text-2xl text-center mb-6"
+        }`}
+      >
+        İş saatları
+      </h2>
+
+      <label className="block text-sm font-medium text-slate-700">
+        Açılış
         <select
           value={openTime}
           onChange={(e) => setOpenTime(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring focus:ring-blue-300"
+          className={fieldClass}
         >
           {timeOptions.map((time, index) => (
             <option key={index} value={time}>
@@ -70,12 +72,12 @@ function UpdateRestaurantTimes() {
         </select>
       </label>
 
-      <label className="block mb-4">
-        <span className="text-gray-700">Kapanış Saati:</span>
+      <label className="block text-sm font-medium text-slate-700 mt-4">
+        Bağlanış
         <select
           value={closeTime}
           onChange={(e) => setCloseTime(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring focus:ring-blue-300"
+          className={fieldClass}
         >
           {timeOptions.map((time, index) => (
             <option key={index} value={time}>
@@ -86,15 +88,32 @@ function UpdateRestaurantTimes() {
       </label>
 
       <button
+        type="button"
         onClick={updateTimes}
-        className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg shadow hover:bg-blue-600 focus:outline-none focus:ring focus:ring-blue-300"
+        className="mt-5 w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition"
       >
-        Güncelle
+        Saatları yenilə
       </button>
 
       {message && (
-        <p className="mt-4 text-center text-green-600 font-medium">{message}</p>
+        <p className="mt-3 text-center text-sm font-medium text-emerald-600">
+          {message}
+        </p>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5 h-full">
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      {inner}
     </div>
   );
 }
