@@ -1,0 +1,54 @@
+# ============================================================
+# SmartCafe Frontend (React SPA) — Hostinger Apache .htaccess
+# Bu dosya `npm run build` sonrası build/ klasörüne otomatik
+# kopyalanır (public/ içindeki her şey build'e aktarılır).
+# ============================================================
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # HTTPS'e zorla (Hostinger'da SSL aktifse)
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # /api/* istekleri React Router'a DÜŞMESİN (Laravel'e gitsin)
+    RewriteRule ^api(/.*)?$ - [L]
+    RewriteRule ^storage(/.*)?$ - [L]
+
+    # Var olan dosya/dizinlere dokunma
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Geri kalan her şeyi index.html'e yönlendir (React Router)
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# Statik asset cache
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresDefault "access plus 1 hour"
+</IfModule>
+
+# Gzip sıkıştırma
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css
+    AddOutputFilterByType DEFLATE application/javascript application/json
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# Güvenlik başlıkları
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

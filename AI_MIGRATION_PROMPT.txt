@@ -1,0 +1,282 @@
+================================================================================
+SMARTCAFE BACKUP → BAŞQA RESTORAN SİSTEMİNƏ KÖÇÜRMƏ ÜÇÜN AI PROMPT
+================================================================================
+Versiya: 1.0
+Son yenilənmə: 2026-04-20
+Dil: Azərbaycan / Türkçə / English
+
+--------------------------------------------------------------------------------
+BU SƏNƏD NƏDİR?
+--------------------------------------------------------------------------------
+Bu sənəd Smartcafe POS sistemindən alınmış backup faylını (JSON) başqa bir
+restoran idarəetmə sistemində bərpa etmək üçün AI asistentinə (Claude, GPT,
+Gemini, Cursor və s.) veriləcək PROMPT-dur.
+
+Backup faylını AI ilə birlikdə nəzərdən keçirdin, aşağıdakı təlimatları
+surətlə AI-ə göndər, sonra JSON faylını da yapışdır.
+
+================================================================================
+AI ÜÇÜN GÖNDƏRİLƏCƏK PROMPT (AZƏRBAYCANCA)
+================================================================================
+
+Sən Laravel + React arxitekturalı restoran idarəetmə (POS) sistemi üçün
+miqrasiya agentisən. Aşağıda Smartcafe POS sistemindən çıxarılmış tam backup
+JSON faylı var. Bu faylı yeni restoran sistemində bərpa etmək tapşırığın var.
+
+TAPŞIRIQ:
+1. Backup faylını (`meta`, `schema`, `data`, `errors` sahələri ilə) oxu
+2. Yeni sistemin API/ models-inə uyğun mapping et
+3. Aşağıdakı SIRANI qoru (foreign key asılılıqlarını pozmamaq üçün):
+   a) Restoran (əgər multi-tenant isə)
+   b) İstifadəçilər və rollar
+   c) Məhsul kateqoriyaları (stock_groups)
+   d) Xammallar (raw_materials)
+   e) Məhsullar (stocks)
+   f) Set menyular (stock_sets)
+   g) Masa qrupları (table_groups)
+   h) Masalar (tables)
+   i) Müştərilər (customers)
+   j) İşçilər (personal)
+   k) Kuryerlər (couriers)
+   l) Zaman paketləri (time_presets) — yalnız PS Club istifadə edilirsə
+   m) Sifariş məlumatı (quick_orders, əgər bərpa ediləcəksə)
+
+4. HƏR OBYEKT ÜÇÜN:
+   - `id`, `created_at`, `updated_at` sahələrini **SAXLAMA** (yeni sistem özü
+     yaradacaq)
+   - `restaurant_id`, `user_id`, `stock_group_id`, `table_group_id` kimi FK
+     sahələrini **yeni yaradılmış ID-lərlə əvəzlə** (mapping table tut)
+   - Şifrələri **yenidən generasiya et** (backup-da hash-lanmış ola bilər, onları
+     köçürmə; "123456" və ya təhlükəsiz random)
+   - Token-lər, API key-lər, session-ları **köçürmə**
+   - Şəkil URL-ləri — əgər mümkünsə yüklə; əks halda placeholder qoy
+
+5. XƏTALARI RAPOR ET:
+   - Mapping-də uyğun gəlməyən sahələr
+   - Boş / çatışmayan məlumatlar
+   - Pozulmuş (corrupt) qeydlər
+
+6. OUTPUT:
+   - İstifadə etdiyin SQL seed və ya JSON fixture
+   - Hər mərhələ üçün qısa progress log
+   - Yekunda tam restore raport
+
+MÖVCUD MƏLUMAT STRUKTURU:
+- meta: { format, version, exported_at, source_url, api_url, notes }
+- schema: hər blok üçün izahat (insan üçün)
+- data:
+  * admin_restaurants: super admin gördüyü restoran siyahısı (super admin
+    backup-ında) — hər restoranda `users[]` var
+  * own_restaurant: cari restoran ayarları (logo, ad, valyuta, is_psclub,
+    empty_table_color, booked_table_color və s.)
+  * current_user: backup-ı alan istifadəçi (name, email, roles[])
+  * tables: [{ id, name, is_available, total_price, book_time,
+    table_group_id, ... }]
+  * table_groups: [{ id, name, restaurant_id }]
+  * stocks: [{ id, name, price, image, description, stock_group_id,
+    details[] (variantlar - count/unit/price) }]
+  * stock_groups: [{ id, name, restaurant_id }]
+  * stock_sets: [{ id, name, price, image, items[] (set içindəki stoklar) }]
+  * customers: [{ id, name, phone, address, ... }]
+  * personal: [{ id, name, role, salary, ... }]
+  * couriers: [{ id, name, phone, ... }]
+  * raw_materials: [{ id, name, quantity, unit, ... }]
+  * time_presets: [{ id, name, duration, price, table_id }]
+  * quick_orders: [{ id, customer_id, items, total, ... }]
+- errors: backup zamanı alınmayan endpoint-lər
+
+QEYD:
+- `empty_table_color`, `booked_table_color` hex kod formatındadır (#ff0000)
+- Qiymətlər (price, total_price) AZN cinsindən ondalıq ədəd
+- Tarixlər ISO 8601 (UTC)
+- `role` dəyərləri: "admin", "waiter", "manager" və s.
+
+İNDİ AŞAĞIDA BACKUP FAYLI JSON KİMİ OLACAQ. ZƏHMƏT OLMASA:
+1. Faylı oxu
+2. Yeni sistem üçün SQL seed və ya miqrasiya scripti yaz
+3. Mapping cədvəlini göstər
+4. Xəta / uyğunsuzluqları sadala
+5. Bütün addımları Azərbaycan dilində izah et
+
+BACKUP JSON:
+<<< BACKUP FAYLINIZI BURAYA YAPIŞDIRIN >>>
+
+================================================================================
+AI PROMPT (ENGLISH VERSION)
+================================================================================
+
+You are a migration agent for restaurant POS systems built on Laravel + React.
+Below is a complete backup JSON extracted from a Smartcafe POS system. Your
+task is to restore this data into a new/different restaurant management system.
+
+TASK:
+1. Read the backup file (fields: `meta`, `schema`, `data`, `errors`)
+2. Map each entity to the target system's schema
+3. Respect this ORDER (to preserve FK dependencies):
+   a) Restaurant (if multi-tenant)
+   b) Users and roles
+   c) Product categories (stock_groups)
+   d) Raw materials
+   e) Products (stocks)
+   f) Menu sets (stock_sets)
+   g) Table groups
+   h) Tables
+   i) Customers
+   j) Staff (personal)
+   k) Couriers
+   l) Time presets (if PS Club is used)
+   m) Orders (quick_orders, optional)
+
+4. FOR EACH RECORD:
+   - DROP `id`, `created_at`, `updated_at` (target system regenerates them)
+   - REMAP foreign keys using an ID mapping table
+   - REGENERATE passwords (do not copy hashes; use "123456" or secure random)
+   - DO NOT copy tokens, API keys, sessions
+   - For image URLs: download if possible, else use placeholder
+
+5. REPORT:
+   - Fields with no mapping target
+   - Missing required fields
+   - Corrupted records
+
+6. OUTPUT:
+   - SQL seeds or JSON fixtures you produced
+   - Progress log per phase
+   - Final restore report
+
+DATA STRUCTURE: (see schema field in backup)
+- meta: export metadata
+- schema: human-readable description per block
+- data: actual records keyed by resource
+- errors: endpoints that failed to export
+
+NOTES:
+- Colors are hex codes (#ff0000)
+- Prices are decimal in AZN
+- Dates are ISO 8601 (UTC)
+- Role values: "admin", "waiter", "manager", etc.
+
+THE BACKUP JSON FOLLOWS. Please:
+1. Read the file
+2. Write SQL seed or migration script for the new system
+3. Show the mapping table
+4. List errors / inconsistencies
+5. Explain each step
+
+BACKUP JSON:
+<<< PASTE YOUR BACKUP FILE HERE >>>
+
+================================================================================
+NECƏ İSTİFADƏ ETMƏLİ? (İSTİFADƏÇİ ÜÇÜN)
+================================================================================
+
+ADDIM 1 — Backup al:
+- Smartcafe POS-a admin kimi gir
+- Sağ üst profil ikonuna → "Tam Backup al" bas
+- JSON fayl avtomatik endiriləcək (ad: backup_restoran_YYYYMMDD.json)
+
+Super admin isən:
+- /adminPage/dashboard səhifəsinə gir
+- Yuxarıdakı "Backup" düyməsinə bas
+- Modal açılacaq, "Backup al və endir" düyməsi ilə JSON endiriləcək
+  (ad: smartcafe_backup_YYYYMMDD_HHMM.json)
+
+ADDIM 2 — AI asistentinə göndər:
+- Claude, ChatGPT, Gemini və ya Cursor/Copilot aç
+- Bu sənədin "AI PROMPT" bölməsini kopyala və AI-yə göndər
+- Sonra BACKUP JSON faylını da yapışdır
+
+ADDIM 3 — AI-in cavabını yoxla:
+- SQL/migration script, mapping raport və xətalar verəcək
+- Script-i yeni sistemin DB-sinə icra et
+- Şəkilləri əl ilə yüklə (lazımdırsa)
+
+ADDIM 4 — Test et:
+- Yeni sistemdə daxil ol
+- Məhsullar, masalar, müştərilər göründüyünü yoxla
+- Qiymətlər və valyuta düzgün olduğunu təsdiqlə
+- İlk test sifarişini yarat
+
+================================================================================
+TƏHLÜKƏSİZLİK XƏBƏRDARLIĞI
+================================================================================
+
+⚠️ Backup faylı həssas məlumat ehtiva edir:
+   - Müştəri telefon nömrələri və ünvanları
+   - İşçi məlumatları
+   - Restoran ayarları
+
+⚠️ Backup faylını:
+   - Ümumi repository-yə commit etmə
+   - E-poçtla göndərmə (şifrələnmədən)
+   - Bulud anbarında (Google Drive, Dropbox) parola qoymadan saxlama
+
+✅ Tövsiyələr:
+   - Şifrələnmiş arxivdə (7z, zip --password) saxla
+   - Köçürmə tamamlandıqda sil
+   - Yalnız sən və AI asistent arasında pay et
+
+================================================================================
+DƏSTƏK OLAN RESURSLAR
+================================================================================
+
+Backup-da olan API endpoint siyahısı:
+- GET /admin-restaurants        (super admin)
+- GET /own-restaurants          (cari restoran ayarları)
+- GET /me                       (istifadəçi profili)
+- GET /tables                   (masalar)
+- GET /table-groups             (masa qrupları)
+- GET /stocks                   (məhsullar)
+- GET /stock-groups             (kateqoriyalar)
+- GET /stock-sets               (setlər)
+- GET /stock-all                (bütün stok)
+- GET /customers                (müştərilər)
+- GET /personal                 (işçilər)
+- GET /couriers                 (kuryerlər)
+- GET /raw-materials            (xammal)
+- GET /time-presets             (zaman paketləri)
+- GET /quick-orders             (sürətli sifarişlər)
+
+Yeni sistemdə həmin endpoint-lərin POST variantları istifadə ediləcək.
+
+================================================================================
+JSON BACKUP FAYLININ STRUKTUR NÜMUNƏSİ
+================================================================================
+
+{
+  "meta": {
+    "format": "smartcafe-backup",
+    "version": "1.0",
+    "scope": "restaurant",          // və ya "system"
+    "exported_at": "2026-04-20T21:00:00.000Z",
+    "source_url": "https://smartcafe.az",
+    "api_url": "https://api.smartcafe.az/api",
+    "restaurant_name": "SmartCafe Merkez",
+    "total_items": 152,
+    "notes": "..."
+  },
+  "schema": { ... },                // insan üçün izahat
+  "data": {
+    "own_restaurant": { ... },
+    "tables": [...],
+    "stocks": [...],
+    ...
+  },
+  "errors": {
+    "time_presets": { "status": 403, "message": "Forbidden" }
+  }
+}
+
+================================================================================
+SON NÖVBƏTİ DƏFƏ NƏ EDƏCƏK?
+================================================================================
+
+Əgər daimi avtomatik backup lazımdırsa:
+1. Hər həftə Dashboard → Backup düyməsi
+2. Faylları gün/tarix-ə görə arxivlə
+3. Felaket bərpası (disaster recovery) halı üçün saxla
+
+Son miqrasiya zamanı bu sənədi (AI_MIGRATION_PROMPT.txt) də birlikdə saxla.
+Gələcəkdə yeni AI modelləri çıxdığında yenidən istifadə edilə bilər.
+
+================================================================================

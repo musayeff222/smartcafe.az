@@ -26,6 +26,9 @@ import {
   FileText,
   RefreshCw,
   FileDown,
+  Database,
+  Loader2,
+  ShieldCheck,
 } from "lucide-react";
 
 const STATUS_FILTERS = [
@@ -48,6 +51,10 @@ function Dashboard() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [backupRunning, setBackupRunning] = useState(false);
+  const [backupLog, setBackupLog] = useState([]);
+  const [backupProgress, setBackupProgress] = useState({ current: 0, total: 0 });
   const fileInputRef = useRef(null);
   const exportMenuRef = useRef(null);
   const navigate = useNavigate();
@@ -170,6 +177,136 @@ function Dashboard() {
   const handleLogout = () => {
     localStorage.removeItem("admin_token");
     navigate("/adminPage");
+  };
+
+  const makeAuthHeader = (which = "admin") => {
+    const token =
+      which === "admin"
+        ? localStorage.getItem("admin_token")
+        : localStorage.getItem("token");
+    if (!token) return null;
+    return {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    };
+  };
+
+  const tryFetch = async (url, log) => {
+    const attempts = [
+      { which: "admin", label: "admin" },
+      { which: "user", label: "restoran" },
+    ];
+    for (const a of attempts) {
+      const h = makeAuthHeader(a.which);
+      if (!h) continue;
+      try {
+        const res = await axios.get(`${base_url}${url}`, h);
+        log?.(`✓ ${url} (${a.label} token)`);
+        return { ok: true, data: res.data, via: a.label };
+      } catch (err) {
+        const status = err?.response?.status || "?";
+        if (status === 401 || status === 403) {
+          continue;
+        }
+        log?.(`✗ ${url} — HTTP ${status}`);
+        return { ok: false, error: err?.message, status };
+      }
+    }
+    log?.(`✗ ${url} — icazəsiz`);
+    return { ok: false, error: "unauthorized", status: 401 };
+  };
+
+  const handleFullBackup = async () => {
+    setBackupRunning(true);
+    setBackupLog([]);
+    const log = (msg) => setBackupLog((prev) => [...prev, msg]);
+
+    const endpoints = [
+      { key: "admin_restaurants", url: "/admin-restaurants" },
+      { key: "own_restaurant", url: "/own-restaurants" },
+      { key: "current_user", url: "/me" },
+      { key: "tables", url: "/tables" },
+      { key: "table_groups", url: "/table-groups" },
+      { key: "stocks", url: "/stocks" },
+      { key: "stock_groups", url: "/stock-groups" },
+      { key: "stock_sets", url: "/stock-sets" },
+      { key: "stock_all", url: "/stock-all" },
+      { key: "customers", url: "/customers" },
+      { key: "personal", url: "/personal" },
+      { key: "couriers", url: "/couriers" },
+      { key: "raw_materials", url: "/raw-materials" },
+      { key: "time_presets", url: "/time-presets" },
+      { key: "quick_orders", url: "/quick-orders" },
+    ];
+
+    setBackupProgress({ current: 0, total: endpoints.length });
+
+    const backup = {
+      meta: {
+        format: "smartcafe-backup",
+        version: "1.0",
+        exported_at: new Date().toISOString(),
+        source_url: window.location.origin,
+        api_url: base_url,
+        notes:
+          "Bu faylda restoran sisteminin snapshot-ı saxlanılır. Başqa restoran sistemində bərpa etmək üçün AI_MIGRATION_PROMPT.txt sənədinə baxın.",
+      },
+      schema: {
+        admin_restaurants: "Super admin-in gördüyü restoran siyahısı",
+        own_restaurant: "Cari istifadəçinin restoran ayarları",
+        current_user: "Backup-ı alan istifadəçi",
+        tables: "Masalar",
+        table_groups: "Masa qrupları",
+        stocks: "Məhsullar (menyu)",
+        stock_groups: "Məhsul kateqoriyaları",
+        stock_sets: "Set menyular",
+        stock_all: "Bütün stok məlumatı",
+        customers: "Müştərilər",
+        personal: "İşçilər",
+        couriers: "Kuryerlər",
+        raw_materials: "Xammal",
+        time_presets: "Zaman paketləri (PS Club)",
+        quick_orders: "Sürətli sifarişlər",
+      },
+      data: {},
+      errors: {},
+    };
+
+    for (let i = 0; i < endpoints.length; i++) {
+      const ep = endpoints[i];
+      setBackupProgress({ current: i + 1, total: endpoints.length });
+      log(`→ ${ep.url} ...`);
+      const result = await tryFetch(ep.url, log);
+      if (result.ok) {
+        backup.data[ep.key] = result.data;
+      } else {
+        backup.errors[ep.key] = {
+          status: result.status,
+          message: result.error,
+        };
+      }
+    }
+
+    const itemCount = Object.values(backup.data).reduce((acc, v) => {
+      if (Array.isArray(v)) return acc + v.length;
+      if (v && typeof v === "object") return acc + 1;
+      return acc;
+    }, 0);
+
+    backup.meta.total_items = itemCount;
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+      type: "application/json;charset=utf-8",
+    });
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const time = new Date().toISOString().slice(11, 16).replace(":", "");
+    triggerDownload(blob, `smartcafe_backup_${date}_${time}.json`);
+
+    log(`✅ Tamamlandı — ${itemCount} qeyd, ${Object.keys(backup.errors).length} xəta`);
+    setBackupRunning(false);
   };
 
   const daysUntil = (dateStr) => {
@@ -560,6 +697,15 @@ function Dashboard() {
                 </label>
 
                 <button
+                  onClick={() => setBackupOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition"
+                  title="Tam sistem backup"
+                >
+                  <Database size={16} />
+                  <span className="hidden sm:inline">Backup</span>
+                </button>
+
+                <button
                   onClick={() => setShowAddUserModal(true)}
                   className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-md transition"
                 >
@@ -823,6 +969,168 @@ function Dashboard() {
                 >
                   <LogOut size={16} /> Çıxış
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {backupOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3"
+            onClick={() => !backupRunning && setBackupOpen(false)}
+          >
+            <div
+              className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-4 text-white">
+                <div className="flex items-center gap-2">
+                  <Database size={22} />
+                  <h3 className="text-lg font-bold">Tam Sistem Backup</h3>
+                </div>
+                <p className="text-xs text-emerald-100 mt-1">
+                  Bütün sistem məlumatlarını JSON faylına yadda saxla
+                </p>
+                {!backupRunning && (
+                  <button
+                    onClick={() => setBackupOpen(false)}
+                    className="absolute right-3 top-3 p-1.5 rounded-lg hover:bg-white/20 transition"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+
+              <div className="p-5 max-h-[70vh] overflow-y-auto space-y-4">
+                {!backupRunning && backupLog.length === 0 && (
+                  <>
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">
+                      <div className="flex items-start gap-2">
+                        <ShieldCheck size={18} className="shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-semibold mb-1">
+                            Backup nə daxil edir?
+                          </div>
+                          <ul className="list-disc list-inside text-xs space-y-0.5 text-blue-700">
+                            <li>Restoran və admin siyahısı</li>
+                            <li>Masalar və masa qrupları</li>
+                            <li>Menyu (məhsullar, kateqoriyalar, setlər)</li>
+                            <li>Müştərilər və işçilər</li>
+                            <li>Kuryerlər, xammallar, zaman paketləri</li>
+                            <li>Sürətli sifarişlər</li>
+                          </ul>
+                          <div className="text-[11px] mt-2 text-blue-600">
+                            Fayl başqa restoran sistemində bərpa etmək üçün AI
+                            prompt ilə birlikdə istifadə edilir
+                            (AI_MIGRATION_PROMPT.txt).
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                      <AlertTriangle size={14} className="inline mr-1" />
+                      Hər endpoint cari admin token və (varsa) restoran token
+                      ilə yoxlanılır. Səlahiyyətiniz olmayan endpointlər xəta
+                      hesabatına əlavə ediləcək.
+                    </div>
+                  </>
+                )}
+
+                {(backupRunning || backupLog.length > 0) && (
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-600 mb-1.5">
+                        <span>Proqres</span>
+                        <span>
+                          {backupProgress.current} / {backupProgress.total}
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all"
+                          style={{
+                            width:
+                              backupProgress.total > 0
+                                ? `${
+                                    (backupProgress.current /
+                                      backupProgress.total) *
+                                    100
+                                  }%`
+                                : "0%",
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-900 text-slate-100 rounded-lg p-3 max-h-72 overflow-y-auto text-xs font-mono">
+                      {backupLog.map((line, i) => (
+                        <div
+                          key={i}
+                          className={
+                            line.startsWith("✓")
+                              ? "text-emerald-400"
+                              : line.startsWith("✗")
+                              ? "text-rose-400"
+                              : line.startsWith("✅")
+                              ? "text-emerald-300 font-semibold"
+                              : "text-slate-400"
+                          }
+                        >
+                          {line}
+                        </div>
+                      ))}
+                      {backupRunning && (
+                        <div className="flex items-center gap-1.5 text-amber-300 mt-1">
+                          <Loader2 size={12} className="animate-spin" />
+                          Əməliyyat davam edir...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 px-5 py-4 bg-slate-50 border-t border-slate-200">
+                {!backupRunning && backupLog.length > 0 ? (
+                  <button
+                    onClick={() => {
+                      setBackupLog([]);
+                      setBackupProgress({ current: 0, total: 0 });
+                      setBackupOpen(false);
+                    }}
+                    className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
+                  >
+                    Bağla
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setBackupOpen(false)}
+                      disabled={backupRunning}
+                      className="px-4 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-100 disabled:opacity-50 transition"
+                    >
+                      Ləğv et
+                    </button>
+                    <button
+                      onClick={handleFullBackup}
+                      disabled={backupRunning}
+                      className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-semibold hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 transition"
+                    >
+                      {backupRunning ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Hazırlanır...
+                        </>
+                      ) : (
+                        <>
+                          <Download size={16} />
+                          Backup al və endir
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

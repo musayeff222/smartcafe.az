@@ -1,18 +1,15 @@
+// API bağlantı adresleri — .env (REACT_APP_*) dosyasından okunur.
+// .env.production / .env.development dosyalarını kullanın.
+// Örnek değişkenler için .env.example dosyasına bakın.
 
-// export const base_url = 'http://127.0.0.1:8000/api' // api base url
-// export const img_url = 'http://127.0.0.1:8000/storage' // api photo url
-// export const domain_url = 'http://localhost:3000' // domain url
+const stripTrailingSlash = (value) =>
+  typeof value === 'string' ? value.replace(/\/+$/, '') : value;
 
+const apiBaseFromEnv = stripTrailingSlash(process.env.REACT_APP_API_BASE_URL);
+const imgBaseFromEnv = stripTrailingSlash(process.env.REACT_APP_IMG_BASE_URL);
+const domainFromEnv  = stripTrailingSlash(process.env.REACT_APP_DOMAIN_URL);
 
-export const base_url = 'https://api.smartcafe.az/api' // api base url
-export const img_url = 'https://api.smartcafe.az/storage' // api photo url
-export const domain_url = 'https://smartcafe.az' // domain url
-
-
-// export const base_url = 'https://betaapi.smartcafe.az/api' // api base url
-// export const img_url = 'https://betaapi.smartcafe.az/storage' // api photo url
-// export const domain_url = 'https://beta.smartcafe.az' // domain url
-
-
-
-
+// Geriye dönük uyumluluk: env tanımlı değilse eski smartcafe.az değerlerine düş.
+export const base_url  = apiBaseFromEnv || 'https://api.smartcafe.az/api';
+export const img_url   = imgBaseFromEnv || 'https://api.smartcafe.az/storage';
+export const domain_url = domainFromEnv || 'https://smartcafe.az';

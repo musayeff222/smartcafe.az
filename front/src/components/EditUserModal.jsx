@@ -61,7 +61,7 @@ function EditUserModal({ user, onEditUser, onClose }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="input-mod-edit"
+              className={inputCls}
             />
           </Field>
 
@@ -70,7 +70,7 @@ function EditUserModal({ user, onEditUser, onClose }) {
               type="text"
               value={admin_name}
               onChange={(e) => setAdminName(e.target.value)}
-              className="input-mod-edit"
+              className={inputCls}
             />
           </Field>
 
@@ -79,7 +79,7 @@ function EditUserModal({ user, onEditUser, onClose }) {
               type="email"
               value={admin_email}
               onChange={(e) => setAdminEmail(e.target.value)}
-              className="input-mod-edit"
+              className={inputCls}
             />
           </Field>
 
@@ -89,7 +89,7 @@ function EditUserModal({ user, onEditUser, onClose }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Boş buraxsanız dəyişməyəcək"
-              className="input-mod-edit"
+              className={inputCls}
             />
           </Field>
 
@@ -98,7 +98,7 @@ function EditUserModal({ user, onEditUser, onClose }) {
               type="date"
               value={expirationDate}
               onChange={(e) => setExpirationDate(e.target.value)}
-              className="input-mod-edit"
+              className={inputCls}
             />
           </Field>
 
@@ -138,28 +138,12 @@ function EditUserModal({ user, onEditUser, onClose }) {
           </button>
         </div>
       </div>
-
-      <style>{`
-        .input-mod-edit {
-          width: 100%;
-          padding: 10px 12px 10px 38px;
-          background-color: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          font-size: 14px;
-          color: #0f172a;
-          transition: all 0.15s;
-          outline: none;
-        }
-        .input-mod-edit:focus {
-          background-color: #fff;
-          border-color: #f59e0b;
-          box-shadow: 0 0 0 3px rgba(245,158,11,0.2);
-        }
-      `}</style>
     </div>
   );
 }
+
+const inputCls =
+  "w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white focus:border-amber-400 transition";
 
 const Field = ({ icon, label, children }) => (
   <div>

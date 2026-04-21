@@ -24,6 +24,8 @@ import {
   Boxes,
   Banknote,
   Layers,
+  Database,
+  Loader2,
 } from "lucide-react";
 
 const getAuthHeaders = () => {
@@ -45,6 +47,7 @@ const Header = ({ token, logOut }) => {
   const [meData, setMeData] = useState({});
   const [role, setRole] = useState(localStorage.getItem("role") || "");
   const [formData, setFormData] = useState({ logo: null, name: "" });
+  const [backupRunning, setBackupRunning] = useState(false);
 
   const tanimRef = useRef(null);
   const profRef = useRef(null);
@@ -110,6 +113,86 @@ const Header = ({ token, logOut }) => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     navigate("/");
+  };
+
+  const handleRestaurantBackup = async () => {
+    setBackupRunning(true);
+    setProfDropShow(false);
+
+    const endpoints = [
+      { key: "own_restaurant", url: "/own-restaurants" },
+      { key: "current_user", url: "/me" },
+      { key: "tables", url: "/tables" },
+      { key: "table_groups", url: "/table-groups" },
+      { key: "stocks", url: "/stocks" },
+      { key: "stock_groups", url: "/stock-groups" },
+      { key: "stock_sets", url: "/stock-sets" },
+      { key: "stock_all", url: "/stock-all" },
+      { key: "customers", url: "/customers" },
+      { key: "personal", url: "/personal" },
+      { key: "couriers", url: "/couriers" },
+      { key: "raw_materials", url: "/raw-materials" },
+      { key: "time_presets", url: "/time-presets" },
+      { key: "quick_orders", url: "/quick-orders" },
+    ];
+
+    const backup = {
+      meta: {
+        format: "smartcafe-backup",
+        version: "1.0",
+        scope: "restaurant",
+        exported_at: new Date().toISOString(),
+        source_url: window.location.origin,
+        api_url: base_url,
+        restaurant_name: formData.name || "",
+        notes:
+          "Restoran səviyyəli backup. Başqa restoran sistemində bərpa üçün AI_MIGRATION_PROMPT.txt sənədinə baxın.",
+      },
+      data: {},
+      errors: {},
+    };
+
+    for (const ep of endpoints) {
+      try {
+        const res = await axios.get(`${base_url}${ep.url}`, getAuthHeaders());
+        backup.data[ep.key] = res.data;
+      } catch (err) {
+        backup.errors[ep.key] = {
+          status: err?.response?.status || "?",
+          message: err?.message || "error",
+        };
+      }
+    }
+
+    const itemCount = Object.values(backup.data).reduce(
+      (acc, v) => acc + (Array.isArray(v) ? v.length : v ? 1 : 0),
+      0
+    );
+    backup.meta.total_items = itemCount;
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+      type: "application/json;charset=utf-8",
+    });
+    const safeName = (formData.name || "restoran")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_|_$/g, "");
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `backup_${safeName}_${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setBackupRunning(false);
+    alert(
+      `Backup hazırdır! ${itemCount} qeyd endirildi. ${
+        Object.keys(backup.errors).length
+      } endpoint əlçatmaz idi.`
+    );
   };
 
   const replaceImage = (url) => (url ? `${img_url}/${url}` : "");
@@ -277,6 +360,24 @@ const Header = ({ token, logOut }) => {
                   >
                     <SlidersHorizontal size={15} /> Nizamlamalar
                   </Link>
+                  {role !== "waiter" && (
+                    <button
+                      onClick={handleRestaurantBackup}
+                      disabled={backupRunning}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                    >
+                      {backupRunning ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" />
+                          Backup alınır...
+                        </>
+                      ) : (
+                        <>
+                          <Database size={15} /> Tam Backup al
+                        </>
+                      )}
+                    </button>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
