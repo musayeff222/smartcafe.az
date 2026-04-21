@@ -55,6 +55,11 @@ build/
 .parcel-cache/
 *.log
 
+# ===== Database dumps (gerçek müşteri verisi, asla commit olmasın) =====
+/api/storage/db-dumps/
+*.sql
+*.sql.gz
+
 # ===== Diğer =====
 terminals/
 .history/
