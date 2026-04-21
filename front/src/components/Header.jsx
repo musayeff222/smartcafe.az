@@ -173,6 +173,12 @@ const Header = ({ token, logOut }) => {
 
   const handleLogout = async () => {
     await logOut();
+    try {
+      const { invalidateSecuritySettingsCache } = await import(
+        "../utils/securityPasswords"
+      );
+      invalidateSecuritySettingsCache();
+    } catch (e) {}
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     navigate("/");

@@ -88,4 +88,9 @@ class Restaurant extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function securitySettings()
+    {
+        return $this->hasMany(RestaurantSecuritySetting::class);
+    }
+
 }

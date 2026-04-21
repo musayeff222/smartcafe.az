@@ -1,17 +1,22 @@
-// SmartCafe üçün çoxşaxəli təhlükəsizlik şifrələri.
-// Köhnə: localStorage-da açıq mətn. Yeni: securityVault ilə AES-256-GCM + əsas PIN.
+/**
+ * POS təhlükəsizlik şifrələri — serverdə (MySQL) bcrypt hash kimi saxlanır.
+ * Brauzerdə yalnız keş (oxunan meta); pin düz mətni yalnız HTTPS üzərindən PUT/verify zamanı gedir.
+ */
 
-import {
-  hasVault,
-  isVaultUnlocked,
-  getMirrorPasswords,
-  setMirrorPassword,
-  persistPasswords,
-  readLegacyPasswordsMap,
-  VAULT_LOCKED_SENTINEL,
-} from "./securityVault";
+import axios from "axios";
+import { base_url } from "../api";
 
-export { VAULT_LOCKED_SENTINEL };
+const authHeaders = () => ({
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  },
+});
+
+/** @type {{ categories: Array<{ key: string, is_enabled: boolean, has_custom_pin: boolean }> } | null} */
+let settingsCache = null;
+let fetchPromise = null;
 
 export const PASSWORD_CATEGORIES = [
   {
@@ -48,91 +53,130 @@ export const PASSWORD_CATEGORIES = [
   },
 ];
 
-const LS_PASSWORDS_KEY = "security_passwords";
-const LS_ENABLED_KEY = "security_passwords_enabled";
-
-const safeParse = (raw) => {
-  try {
-    return raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    return {};
-  }
-};
-
-const readMap = (key) => {
-  try {
-    return safeParse(localStorage.getItem(key));
-  } catch (e) {
-    return {};
-  }
-};
-
-const writeMap = (key, value) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {}
-};
-
-export const getAllPasswords = () => {
-  if (isVaultUnlocked()) return getMirrorPasswords();
-  if (hasVault()) return {};
-  return readMap(LS_PASSWORDS_KEY);
-};
-
-export const getAllEnabled = () => readMap(LS_ENABLED_KEY);
-
-export const getPassword = (categoryKey) => {
-  if (hasVault() && !isVaultUnlocked()) return VAULT_LOCKED_SENTINEL;
-
-  let map = {};
-  if (isVaultUnlocked()) map = getMirrorPasswords();
-  else map = readMap(LS_PASSWORDS_KEY);
-
-  if (map[categoryKey]) return String(map[categoryKey]);
-  const cat = PASSWORD_CATEGORIES.find((c) => c.key === categoryKey);
-  return cat ? cat.defaultPassword : "";
-};
+export function invalidateSecuritySettingsCache() {
+  settingsCache = null;
+  fetchPromise = null;
+}
 
 /**
- * @returns {Promise<void>}
+ * API-dən təhlükəsizlik üzrə meta məlumatı yükləyir (bir neçə paralel çağırış bir sorğuda birləşir).
  */
-export const setPassword = async (categoryKey, value) => {
+export async function prefetchSecuritySettings() {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    invalidateSecuritySettingsCache();
+    return null;
+  }
+  if (settingsCache) return settingsCache;
+  if (fetchPromise) return fetchPromise;
+
+  fetchPromise = axios
+    .get(`${base_url}/restaurant/security-settings`, authHeaders())
+    .then((res) => {
+      settingsCache = res.data;
+      fetchPromise = null;
+      try {
+        window.dispatchEvent(new Event("security-settings-updated"));
+      } catch (e) {}
+      return settingsCache;
+    })
+    .catch((err) => {
+      fetchPromise = null;
+      throw err;
+    });
+
+  return fetchPromise;
+}
+
+/** Admin UI: son məlumatı yenidən çək */
+export async function refreshSecuritySettings() {
+  invalidateSecuritySettingsCache();
+  return prefetchSecuritySettings();
+}
+
+export function getAllPasswords() {
+  const out = {};
+  if (!settingsCache?.categories) return out;
+  for (const row of settingsCache.categories) {
+    if (row.has_custom_pin) out[row.key] = "••••";
+  }
+  return out;
+}
+
+export function getAllEnabled() {
+  const out = {};
+  if (!settingsCache?.categories) return out;
+  for (const row of settingsCache.categories) {
+    out[row.key] = row.is_enabled !== false;
+  }
+  return out;
+}
+
+export function isCategoryEnabled(categoryKey) {
+  if (!settingsCache?.categories) return true;
+  const row = settingsCache.categories.find((c) => c.key === categoryKey);
+  if (!row) return true;
+  return row.is_enabled !== false;
+}
+
+export function hasCustomPinFor(categoryKey) {
+  if (!settingsCache?.categories) return false;
+  const row = settingsCache.categories.find((c) => c.key === categoryKey);
+  return !!row?.has_custom_pin;
+}
+
+/**
+ * Serverdə Hash::check — şifrə düzgünlüyü.
+ */
+export async function verifyPassword(categoryKey, attempt) {
+  if (!isCategoryEnabled(categoryKey)) return true;
+  const res = await axios.post(
+    `${base_url}/restaurant/security-settings/verify`,
+    { category: categoryKey, attempt: String(attempt) },
+    authHeaders()
+  );
+  return res.data?.ok === true;
+}
+
+/**
+ * Bir kateqoriya üçün pin təyin et (server bcrypt saxlayır).
+ */
+export async function setPassword(categoryKey, value) {
   if (!categoryKey) return;
-  const clean = String(value || "").replace(/\D/g, "").slice(0, 6);
+  const clean = String(value || "").replace(/\D/g, "").slice(0, 8);
   if (clean.length < 4) {
     throw new Error("Şifrə ən az 4 rəqəm olmalıdır");
   }
+  await axios.put(
+    `${base_url}/restaurant/security-settings`,
+    {
+      categories: [{ key: categoryKey, pin: clean }],
+    },
+    authHeaders()
+  );
+  await refreshSecuritySettings();
+}
 
-  if (hasVault()) {
-    if (!isVaultUnlocked()) {
-      throw new Error("Əsas PIN ilə kilidi açın");
-    }
-    setMirrorPassword(categoryKey, clean);
-    await persistPasswords();
-    return;
-  }
-
-  const map = readMap(LS_PASSWORDS_KEY);
-  map[categoryKey] = clean;
-  writeMap(LS_PASSWORDS_KEY, map);
-};
-
-export const isCategoryEnabled = (categoryKey) => {
-  const map = getAllEnabled();
-  return map[categoryKey] !== false;
-};
-
-export const setCategoryEnabled = (categoryKey, enabled) => {
+export async function setCategoryEnabled(categoryKey, enabled) {
   if (!categoryKey) return;
-  const map = getAllEnabled();
-  map[categoryKey] = !!enabled;
-  writeMap(LS_ENABLED_KEY, map);
-};
+  await axios.put(
+    `${base_url}/restaurant/security-settings`,
+    {
+      categories: [{ key: categoryKey, is_enabled: !!enabled }],
+    },
+    authHeaders()
+  );
+  await refreshSecuritySettings();
+}
 
-export const verifyPassword = (categoryKey, attempt) => {
-  if (!isCategoryEnabled(categoryKey)) return true;
-  if (hasVault() && !isVaultUnlocked()) return false;
-  const expected = getPassword(categoryKey);
-  if (expected === VAULT_LOCKED_SENTINEL) return false;
-  return String(attempt) === String(expected);
-};
+export async function resetCustomPin(categoryKey) {
+  if (!categoryKey) return;
+  await axios.put(
+    `${base_url}/restaurant/security-settings`,
+    {
+      categories: [{ key: categoryKey, reset_custom_pin: true }],
+    },
+    authHeaders()
+  );
+  await refreshSecuritySettings();
+}

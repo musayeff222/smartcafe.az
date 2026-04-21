@@ -15,11 +15,10 @@ import {
 } from "lucide-react";
 import {
   PASSWORD_CATEGORIES,
-  getPassword,
+  prefetchSecuritySettings,
+  verifyPassword,
   isCategoryEnabled,
-  VAULT_LOCKED_SENTINEL,
 } from "../utils/securityPasswords";
-import { needsVaultUnlock } from "../utils/securityVault";
 
 const CATEGORY_ICONS = {
   azaltma: Package,
@@ -29,17 +28,6 @@ const CATEGORY_ICONS = {
   kassa: Wallet,
 };
 
-/**
- * Modern SecurityGate: kateqoriya əsaslı şifrə modal ekranı.
- * Köhnə ScreenPassword dizaynlarının yerinə gələn ortaq komponent.
- *
- * Props:
- *  - category: "azaltma" | "silme" | "legv" | "anbar" | "kassa"
- *  - onSuccess: şifrə düzgün daxil edildikdə çağırılır
- *  - onClose:   modal bağlanmaq istənildikdə (opsional, yoxdursa düymə göstərilmir)
- *  - title:     başlıq (opsional; default kateqoriyanın label-i)
- *  - autoDismiss: default true — söndürülmüş kateqoriyada dərhal onSuccess çağırılır
- */
 const SecurityGate = ({
   category,
   onSuccess,
@@ -47,11 +35,12 @@ const SecurityGate = ({
   title,
   autoDismiss = true,
 }) => {
-  const [vaultReady, setVaultReady] = useState(() => !needsVaultUnlock());
+  const [settingsReady, setSettingsReady] = useState(false);
   const [value, setValue] = useState("");
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [shake, setShake] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const inputRef = useRef(null);
 
   const cat =
@@ -63,22 +52,27 @@ const SecurityGate = ({
   const Icon = CATEGORY_ICONS[category] || Lock;
 
   useEffect(() => {
-    if (autoDismiss && !isCategoryEnabled(category)) {
-      onSuccess?.();
-    }
-  }, [category, autoDismiss]); // eslint-disable-line
+    let cancelled = false;
+    (async () => {
+      try {
+        await prefetchSecuritySettings();
+      } catch {
+        /* offline / 403 */
+      }
+      if (cancelled) return;
+      setSettingsReady(true);
+      if (autoDismiss && !isCategoryEnabled(category)) {
+        onSuccess?.();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [category, autoDismiss]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (vaultReady) return;
-    const onUnlocked = () => setVaultReady(true);
-    window.addEventListener("security-vault-unlocked", onUnlocked);
-    window.dispatchEvent(new CustomEvent("security-vault-request-unlock"));
-    return () => window.removeEventListener("security-vault-unlocked", onUnlocked);
-  }, [vaultReady]);
-
-  useEffect(() => {
-    if (vaultReady) inputRef.current?.focus();
-  }, [vaultReady]);
+    if (settingsReady) inputRef.current?.focus();
+  }, [settingsReady]);
 
   const MAX = 6;
 
@@ -89,30 +83,36 @@ const SecurityGate = ({
     else if (value.length < MAX) setValue(value + v);
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (value.length < 4) {
       setError("Şifrə ən az 4 rəqəm olmalıdır");
       triggerShake();
       return;
     }
-    const expected = getPassword(category);
-    if (expected === VAULT_LOCKED_SENTINEL) {
-      setError("Əvvəl əsas PIN ilə anbar kilidini açın");
-      triggerShake();
-      window.dispatchEvent(new CustomEvent("security-vault-request-unlock"));
-      setValue("");
-      return;
-    }
-    if (String(value) === String(expected)) {
-      toast.success("Təsdiq edildi", {
+    setVerifying(true);
+    setError("");
+    try {
+      const ok = await verifyPassword(category, value);
+      if (ok) {
+        toast.success("Təsdiq edildi", {
+          position: "top-center",
+          autoClose: 800,
+        });
+        onSuccess?.();
+      } else {
+        setError("Şifrə yanlışdır");
+        triggerShake();
+        setValue("");
+      }
+    } catch {
+      toast.error("Şəbəkə xətası — yoxlama alınmadı", {
         position: "top-center",
-        autoClose: 800,
       });
-      onSuccess?.();
-    } else {
-      setError("Şifrə yanlışdır");
+      setError("Şəbəkə xətası");
       triggerShake();
       setValue("");
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -121,19 +121,13 @@ const SecurityGate = ({
     setTimeout(() => setShake(false), 400);
   };
 
-  // Kateqoriya söndürülübsə heç bir şey göstərmə
-  if (autoDismiss && !isCategoryEnabled(category)) return null;
+  if (autoDismiss && settingsReady && !isCategoryEnabled(category)) return null;
 
-  if (!vaultReady) {
+  if (!settingsReady) {
     return (
       <div className="fixed inset-0 z-[55] bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center p-6">
         <div className="rounded-2xl bg-white px-6 py-5 shadow-xl border border-slate-200 text-center max-w-sm">
-          <p className="text-sm font-medium text-slate-700">
-            Şifrə vault-u açılır…
-          </p>
-          <p className="text-xs text-slate-500 mt-2">
-            Əsas PIN pəncərəsini tamamlayın.
-          </p>
+          <p className="text-sm font-medium text-slate-700">Yüklənir…</p>
         </div>
       </div>
     );
@@ -150,7 +144,6 @@ const SecurityGate = ({
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Üst: gradient header */}
         <div className="relative px-5 py-4 bg-gradient-to-br from-indigo-600 via-purple-600 to-fuchsia-600 text-white">
           <div className="flex items-start gap-3">
             <div className="w-11 h-11 shrink-0 rounded-xl bg-white/15 backdrop-blur grid place-items-center ring-1 ring-white/20">
@@ -169,6 +162,7 @@ const SecurityGate = ({
             </div>
             {onClose && (
               <button
+                type="button"
                 onClick={onClose}
                 className="shrink-0 p-1.5 rounded-lg hover:bg-white/15 transition"
                 aria-label="Bağla"
@@ -179,7 +173,6 @@ const SecurityGate = ({
           </div>
         </div>
 
-        {/* Orta: input + keypad */}
         <div className="p-5 space-y-4">
           <div className="relative">
             <input
@@ -197,11 +190,12 @@ const SecurityGate = ({
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  submit();
+                  if (!verifying) submit();
                 }
               }}
               maxLength={MAX}
               placeholder="••••"
+              disabled={verifying}
               className={`w-full text-center text-3xl sm:text-4xl font-bold tracking-[0.5em] border-2 rounded-xl py-4 focus:outline-none transition placeholder:text-slate-300 placeholder:tracking-widest ${
                 error
                   ? "bg-rose-50 border-rose-300 text-rose-700 focus:border-rose-500"
@@ -230,14 +224,16 @@ const SecurityGate = ({
               <button
                 key={n}
                 type="button"
+                disabled={verifying}
                 onClick={() => handle(String(n))}
-                className="py-3.5 rounded-xl text-xl font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 active:scale-95 transition"
+                className="py-3.5 rounded-xl text-xl font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 active:scale-95 transition disabled:opacity-50"
               >
                 {n}
               </button>
             ))}
             <button
               type="button"
+              disabled={verifying}
               onClick={() => handle("clear")}
               className="py-3.5 rounded-xl text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-95 transition"
             >
@@ -245,6 +241,7 @@ const SecurityGate = ({
             </button>
             <button
               type="button"
+              disabled={verifying}
               onClick={() => handle("0")}
               className="py-3.5 rounded-xl text-xl font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 active:scale-95 transition"
             >
@@ -252,6 +249,7 @@ const SecurityGate = ({
             </button>
             <button
               type="button"
+              disabled={verifying}
               onClick={() => handle("back")}
               className="py-3.5 rounded-xl text-sm font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 active:scale-95 transition inline-flex items-center justify-center gap-1"
             >
@@ -262,10 +260,11 @@ const SecurityGate = ({
           <button
             type="button"
             onClick={submit}
-            disabled={value.length < 4}
+            disabled={value.length < 4 || verifying}
             className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm inline-flex items-center justify-center gap-2 hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ShieldCheck size={16} /> Kilidi aç
+            <ShieldCheck size={16} />{" "}
+            {verifying ? "Yoxlanır…" : "Kilidi aç"}
           </button>
         </div>
       </div>

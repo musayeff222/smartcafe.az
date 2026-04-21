@@ -2,7 +2,10 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { base_url } from "../api";
 import SecurityGate from "./SecurityGate";
-import { isCategoryEnabled } from "../utils/securityPasswords";
+import {
+  isCategoryEnabled,
+  prefetchSecuritySettings,
+} from "../utils/securityPasswords";
 
 const getHeaders = () => ({
   headers: {
@@ -12,10 +15,6 @@ const getHeaders = () => ({
   },
 });
 
-/**
- * Masadan məhsulun azaldılması / silinməsi üçün şifrə ekranı.
- * Şifrə təsdiqləndikdən sonra avtomatik API çağırışı edir.
- */
 const PasswordScreenFour = ({
   pendingRemoveData,
   onClose,
@@ -23,11 +22,11 @@ const PasswordScreenFour = ({
   tableId,
   category = "azaltma",
 }) => {
-  const [executing, setExecuting] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [autoDone, setAutoDone] = useState(false);
 
   const runSubtract = async () => {
     try {
-      setExecuting(true);
       await axios.post(
         `${base_url}/tables/${tableId}/subtract-stock`,
         {
@@ -42,18 +41,30 @@ const PasswordScreenFour = ({
       onClose?.();
     } catch (err) {
       console.error("Silinmə zamanı xəta:", err);
-    } finally {
-      setExecuting(false);
     }
   };
 
-  // Kateqoriya söndürülübsə birbaşa icra et
   useEffect(() => {
-    if (!isCategoryEnabled(category)) {
-      runSubtract();
-    }
-    // eslint-disable-next-line
-  }, [category]);
+    let cancelled = false;
+    (async () => {
+      try {
+        await prefetchSecuritySettings();
+      } catch {
+        /* */
+      }
+      if (cancelled) return;
+      if (!isCategoryEnabled(category)) {
+        await runSubtract();
+        setAutoDone(true);
+      }
+      setReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [category]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!ready || autoDone) return null;
 
   if (!isCategoryEnabled(category)) return null;
 

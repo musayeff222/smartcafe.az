@@ -1,18 +1,33 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import SecurityGate from "./SecurityGate";
-import { isCategoryEnabled } from "../utils/securityPasswords";
+import {
+  isCategoryEnabled,
+  prefetchSecuritySettings,
+} from "../utils/securityPasswords";
 
-// Köhnə ScreenPassword3 (hardcoded 3478) — masa ləğv şifrəsi.
 const PasswordScreen = ({ category = "legv", onSuccess, onClose }) => {
-  const [unlocked, setUnlocked] = useState(
-    () => !isCategoryEnabled(category)
-  );
+  const [unlocked, setUnlocked] = useState(false);
 
-  if (unlocked) {
-    // Söndürülmüş rejim üçün onSuccess çağırışı SecurityGate tərəfdən
-    // edilir; burada başqa bir şey lazım deyil.
-    return null;
-  }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await prefetchSecuritySettings();
+      } catch {
+        /* */
+      }
+      if (cancelled) return;
+      if (!isCategoryEnabled(category)) {
+        setUnlocked(true);
+        onSuccess?.();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [category]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (unlocked) return null;
 
   return (
     <SecurityGate

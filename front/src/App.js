@@ -27,9 +27,9 @@ import Expenses from "./pages/expenses.jsx";
 import StockSetGenel from "./pages/StockSetGenel.jsx";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import SecurityVaultUnlockHost from "./components/SecurityVaultUnlockHost";
+import { prefetchSecuritySettings } from "./utils/securityPasswords";
 import { useSelector, useDispatch } from "react-redux";
-import { tick } from"./redux/timerSlice.js";
+import { tick } from "./redux/timerSlice.js";
 
 const getHeaders = () => ({
   headers: {
@@ -61,6 +61,12 @@ const App = () => {
   );
   const [role, setrole] = useState(localStorage.getItem("role"));
   useEffect(() => {
+    if (localStorage.getItem("token")) {
+      prefetchSecuritySettings().catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchOrders = async () => {
       try {
         const response = await axios.get(`${base_url}/own-restaurants`, getHeaders());
@@ -86,7 +92,6 @@ const App = () => {
   return (
     <div>
       <ToastContainer />
-      <SecurityVaultUnlockHost />
       {showHeader && <Header />}
       <Routes>
         <Route path="/" element={<Login />} />

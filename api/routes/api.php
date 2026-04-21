@@ -24,6 +24,7 @@ use App\Http\Controllers\StockSetController;
 use App\Http\Controllers\TimePresetController;
 use App\Http\Controllers\TableTimeSessionController;
 use App\Http\Controllers\TimeChargeController;
+use App\Http\Controllers\RestaurantSecuritySettingController;
 
 use App\Models\Table;
 
@@ -93,9 +94,14 @@ Route::middleware('auth:sanctum')->group(function () {
         // Manage restoran settings
         Route::get('own-restaurants', [RestaurantController::class, 'getOwnRestaurant']);
 
+        Route::get('restaurant/security-settings', [RestaurantSecuritySettingController::class, 'index']);
+        Route::post('restaurant/security-settings/verify', [RestaurantSecuritySettingController::class, 'verify'])
+            ->middleware('throttle:40,1');
+
         Route::middleware('permission:manage-restaurants')->group(function () {
             Route::put('own-restaurants', [RestaurantController::class, 'updateOwnRestaurant']);
             Route::get('restaurant/print-mode', [RestaurantController::class, 'getPrintMode']);
+            Route::put('restaurant/security-settings', [RestaurantSecuritySettingController::class, 'update']);
         });
 
         Route::middleware('permission:manage-tanimlar')->group(function () {
