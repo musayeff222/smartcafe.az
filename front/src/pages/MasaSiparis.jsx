@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { pageTitle } from "../config/branding";
 import axios from "axios";
 // import { toast, ToastContainer } from "react-toastify";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -1529,7 +1530,7 @@ const kicthenDataSend = () => {
     <>
       <ToastContainer />
       <Helmet>
-        <title>Masaların sifarişi | Smartcafe</title>
+        <title>{pageTitle('Masaların sifarişi')}</title>
         <meta
           name="description"
           content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi "

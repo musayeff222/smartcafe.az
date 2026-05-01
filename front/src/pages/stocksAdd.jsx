@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { pageTitle } from "../config/branding";
 import axios from "axios";
 import AddStok from "../components/AddStok";
 import StokGruplari from "../components/StokGruplari";
@@ -236,7 +237,7 @@ function Stok() {
     <>
       <ScreenPassword category="anbar" />
       <Helmet>
-        <title>Anbar | Smartcafe</title>
+        <title>{pageTitle('Anbar')}</title>
         <meta
           name="description"
           content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi "

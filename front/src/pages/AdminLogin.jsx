@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { pageTitle, APP_NAME } from "../config/branding";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { base_url } from "../api/index";
@@ -46,7 +47,7 @@ function AdminLogin() {
   return (
     <>
       <Helmet>
-        <title>Super Admin Giriş | Smartcafe</title>
+        <title>{pageTitle('Super Admin Giriş')}</title>
         <meta
           name="description"
           content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi"
@@ -71,7 +72,7 @@ function AdminLogin() {
             <div>
               <h2 className="text-xl font-bold text-slate-800">Admin Giriş</h2>
               <p className="text-xs text-slate-500">
-                Smartcafe Super Admin Panel
+                {APP_NAME} Super Admin Panel
               </p>
             </div>
           </div>
@@ -143,7 +144,7 @@ function AdminLogin() {
 
           <div className="mt-6 pt-4 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-400">
-              © {new Date().getFullYear()} Smartcafe · Bütün hüquqlar qorunur
+              © {new Date().getFullYear()} {APP_NAME} · Bütün hüquqlar qorunur
             </p>
           </div>
         </form>

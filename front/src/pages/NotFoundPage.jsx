@@ -1,4 +1,5 @@
 import React from 'react';
+import { pageTitle } from "../config/branding";
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 
@@ -6,7 +7,7 @@ function NotFoundPage() {
     return (
         <>
                                           <Helmet>
-        <title>Vay! Səhifə tapılmadı | Smartcafe</title>
+        <title>{pageTitle('Vay! Səhifə tapılmadı')}</title>
         <meta name="description" content='Restoran proqramı | Kafe - Restoran idarə etmə sistemi ' />
       </Helmet>
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">

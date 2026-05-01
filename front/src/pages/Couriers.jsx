@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { pageTitle } from "../config/branding";
 import AccessDenied from '../components/AccessDenied';
 import AddCourier from '../components/AddCourier';
 import EditCourierPopup from '../components/EditCourierPopup';
@@ -112,7 +113,7 @@ function Couriers() {
         <PasswordScreen/>
 
                            <Helmet>
-        <title>Kuryer | Smartcafe</title>
+        <title>{pageTitle('Kuryer')}</title>
         <meta name="description" content='Restoran proqramı | Kafe - Restoran idarə etmə sistemi ' />
       </Helmet>
         <section className='p-4'>

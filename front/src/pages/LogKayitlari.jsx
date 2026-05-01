@@ -1,11 +1,12 @@
 import React from 'react'
+import { pageTitle } from "../config/branding";
 import { Helmet } from 'react-helmet'
 
 function LogKayitlari() {
     return (
         <>
                    <Helmet>
-        <title>Login | Smartcafe</title>
+        <title>{pageTitle('Login')}</title>
         <meta name="description" content='Restoran proqramı | Kafe - Restoran idarə etmə sistemi ' />
       </Helmet>
          <section className='p-4'>

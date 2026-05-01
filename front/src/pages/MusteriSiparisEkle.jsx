@@ -1,5 +1,6 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
+import { pageTitle } from "../config/branding";
 import { useNavigate, useParams } from "react-router-dom";
 import AccessDenied from "../components/AccessDenied";
 import AlertSuccess from "../components/Alertsuccess";
@@ -637,7 +638,7 @@ function MusteriSiparisEkle() {
   return (
     <>
       <Helmet>
-        <title> Müştəri sifarişi əlavə edin | Smartcafe</title>
+        <title>{pageTitle('Müştəri sifarişi əlavə edin')}</title>
         <meta
           name="description"
           content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi "

@@ -122,7 +122,7 @@
 //   return (
 //     <>
 //         <Helmet>
-//         <title>Qr kodu menyusu| Smartcafe</title>
+//         <title>{pageTitle('Qr kodu menyusu')}</title>
 //         <meta name="description" content='Restoran proqramı | Kafe - Restoran idarə etmə sistemi ' />
 //       </Helmet>
 //     <div className=" p-6 bg-gray-100 min-h-screen">
@@ -456,7 +456,7 @@
 //   return (
 //     <>
 //       <Helmet>
-//         <title>Qr kodu menyusu | Smartcafe</title>
+//         <title>{pageTitle('Qr kodu menyusu')}</title>
 //         <meta
 //           name="description"
 //           content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi "
@@ -662,6 +662,7 @@
 
 
 import React, { useState, useEffect, useRef } from "react";
+import { pageTitle } from "../config/branding";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 import MenuItemPopup from "../components/MenuItemPopup"; 
@@ -906,7 +907,7 @@ const handleConfirmOrder = async (item, quantity) => {
   return (
     <>
       <Helmet>
-        <title>Qr kodu menyusu | Smartcafe</title>
+        <title>{pageTitle('Qr kodu menyusu')}</title>
         <meta
           name="description"
           content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi "

@@ -13,3 +13,15 @@ const domainFromEnv  = stripTrailingSlash(process.env.REACT_APP_DOMAIN_URL);
 export const base_url  = apiBaseFromEnv || 'https://api.smartcafe.az/api';
 export const img_url   = imgBaseFromEnv || 'https://api.smartcafe.az/storage';
 export const domain_url = domainFromEnv || 'https://smartcafe.az';
+
+/** Bearer token ile JSON istekleri (çoğu axios çağrısı bunu kullanır). */
+export const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+  };
+};

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { pageTitle } from "../config/branding";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -462,7 +463,7 @@ function GunlukKasa() {
     <>
       <PasswordScreen category="kassa" />
       <Helmet>
-        <title> Kassa | Smartcafe</title>
+        <title>{pageTitle('Kassa')}</title>
         <meta
           name="description"
           content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi "

@@ -83,7 +83,7 @@ function AddUserModal({ onAddUser, onClose }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="məs. SmartCafe Merkez"
+              placeholder="məs. Restoran adı"
               className={inputCls}
             />
           </Field>

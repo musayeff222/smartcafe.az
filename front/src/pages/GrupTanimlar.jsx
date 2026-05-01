@@ -1,11 +1,12 @@
 import React, { useState } from "react";
+import { pageTitle } from "../config/branding";
 
 function GrupTanimlar({ setGrupTanimlari }) {
   const [grupEkle, setGrupEkle] = useState(false);
   return (
     <>
       {/* <Helmet>
-        <title> Grup Tanimlar | Smartcafe</title>
+        <title>{pageTitle('Grup Tanimlar')}</title>
         <meta name="description" content='Restoran proqramı | Kafe - Restoran idarə etmə sistemi ' />
       </Helmet> */}
       <div class="absolute w-full h-screen top-0 overflow-hidden p-7 bg-[#444444e6]">

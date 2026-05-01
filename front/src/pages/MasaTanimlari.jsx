@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { pageTitle } from "../config/branding";
 import axios from 'axios';
 import AddMasa from '../components/AddMasa';
 import AddGroupPopup from '../components/AddGroupPopup';
@@ -192,7 +193,7 @@ function MasaTanimlari() {
               <PasswordScreen />
 
                              <Helmet>
-        <title>Masa tərifləri | Smartcafe</title>
+        <title>{pageTitle('Masa tərifləri')}</title>
         <meta name="description" content='Restoran proqramı | Kafe - Restoran idarə etmə sistemi ' />
       </Helmet>
         <section className='p-4'>

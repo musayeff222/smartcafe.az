@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { pageTitle } from "../config/branding";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import SelectCourierModal from "../components/SelectCourierModal";
@@ -160,7 +161,7 @@ const createObjHesabKes = (id) => {
   return (
     <>
       <Helmet>
-        <title>Sifarişlər | Smartcafe</title>
+        <title>{pageTitle('Sifarişlər')}</title>
         <meta
           name="description"
           content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi "

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { pageTitle } from "../config/branding";
 import axios from "axios";
 import Modal from "../components/Modal";
 import MasaAyarlari from "../components/MasaAyarlari";
@@ -246,7 +247,7 @@ const Masalar = () => {
   return (
     <>
       <Helmet>
-        <title>Masalar | Smartcafe</title>
+        <title>{pageTitle('Masalar')}</title>
         <meta
           name="description"
           content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi"

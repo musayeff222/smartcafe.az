@@ -1,6 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
+import { pageTitle } from "../config/branding";
 import axios from 'axios';
 import MusteriInfo from '../components/MusteriInfo';
 import MusteriEkle from '../components/MusteriEkle';
@@ -90,7 +91,7 @@ function Musteriler() {
     return (
         <>
                                      <Helmet>
-        <title>Müstərilər | Smartcafe</title>
+        <title>{pageTitle('Müstərilər')}</title>
         <meta name="description" content='Restoran proqramı | Kafe - Restoran idarə etmə sistemi ' />
       </Helmet>
             <section className='p-4'>

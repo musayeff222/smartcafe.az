@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { pageTitle } from "../config/branding";
 import AddPersonel from '../components/AddPersonel';
 import EditPersonelPopup from '../components/EditPersonelPopup';
 import axios from 'axios';
@@ -123,7 +124,7 @@ function PersonelTanimlari() {
         <>
         <PasswordScreen/>
          <Helmet>
-        <title>Kadr tərifləri | Smartcafe</title>
+        <title>{pageTitle('Kadr tərifləri')}</title>
         <meta name="description" content='Restoran proqramı | Kafe - Restoran idarə etmə sistemi ' />
       </Helmet>
       

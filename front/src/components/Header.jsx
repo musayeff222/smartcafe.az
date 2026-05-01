@@ -6,6 +6,7 @@ import { connect } from "react-redux";
 import { logOut } from "../action/MainAction";
 import NewOrders from "./NewOrders";
 import { base_url, img_url } from "../api/index";
+import { APP_NAME, BACKUP_FORMAT_ID } from "../config/branding";
 import {
   Menu,
   X,
@@ -207,7 +208,7 @@ const Header = ({ token, logOut }) => {
 
     const backup = {
       meta: {
-        format: "smartcafe-backup",
+        format: BACKUP_FORMAT_ID,
         version: "1.0",
         scope: "restaurant",
         exported_at: new Date().toISOString(),
@@ -350,7 +351,7 @@ const Header = ({ token, logOut }) => {
             )}
             <div className="hidden sm:flex flex-col leading-tight">
               <span className="text-sm font-bold text-slate-800 max-w-[10rem] truncate">
-                {formData.name || "Smartcafe"}
+                {formData.name || APP_NAME}
               </span>
               <span className="text-[10px] text-slate-500 uppercase tracking-wider">
                 POS System
@@ -548,7 +549,7 @@ const Header = ({ token, logOut }) => {
                 )}
                 <div className="leading-tight">
                   <div className="text-sm font-bold text-slate-800 truncate max-w-[10rem]">
-                    {formData.name || "Smartcafe"}
+                    {formData.name || APP_NAME}
                   </div>
                   <div className="text-[10px] text-slate-500 uppercase">POS</div>
                 </div>

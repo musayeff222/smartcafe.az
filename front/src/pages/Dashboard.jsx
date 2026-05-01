@@ -1,4 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import {
+  pageTitle,
+  APP_NAME,
+  BACKUP_FORMAT_ID,
+  BACKUP_FILENAME_PREFIX,
+} from "../config/branding";
 import { useNavigate } from "react-router-dom";
 import AddUserModal from "../components/AddUserModal";
 import EditUserModal from "../components/EditUserModal";
@@ -246,7 +252,7 @@ function Dashboard() {
 
     const backup = {
       meta: {
-        format: "smartcafe-backup",
+        format: BACKUP_FORMAT_ID,
         version: "1.0",
         exported_at: new Date().toISOString(),
         source_url: window.location.origin,
@@ -303,7 +309,7 @@ function Dashboard() {
     });
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const time = new Date().toISOString().slice(11, 16).replace(":", "");
-    triggerDownload(blob, `smartcafe_backup_${date}_${time}.json`);
+    triggerDownload(blob, `${BACKUP_FILENAME_PREFIX}_${date}_${time}.json`);
 
     log(`✅ Tamamlandı — ${itemCount} qeyd, ${Object.keys(backup.errors).length} xəta`);
     setBackupRunning(false);
@@ -528,7 +534,7 @@ function Dashboard() {
   return (
     <>
       <Helmet>
-        <title>İdarə Paneli | Smartcafe</title>
+        <title>{pageTitle('İdarə Paneli')}</title>
         <meta
           name="description"
           content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi"
@@ -548,11 +554,11 @@ function Dashboard() {
               </button>
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 grid place-items-center text-white font-bold shadow-md">
-                  S
+                  {APP_NAME.charAt(0)}
                 </div>
                 <div className="hidden sm:block">
                   <h1 className="text-lg font-bold text-slate-800 leading-tight">
-                    Smartcafe
+                    {APP_NAME}
                   </h1>
                   <p className="text-[11px] text-slate-500 -mt-0.5">
                     Super Admin Panel
@@ -930,10 +936,10 @@ function Dashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 grid place-items-center text-white font-bold">
-                    S
+                    {APP_NAME.charAt(0)}
                   </div>
                   <div>
-                    <div className="font-bold text-slate-800">Smartcafe</div>
+                    <div className="font-bold text-slate-800">{APP_NAME}</div>
                     <div className="text-[11px] text-slate-500">Admin</div>
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { pageTitle } from "../config/branding";
 import axios from 'axios';
 import AccessDenied from '../components/AccessDenied';
 import { base_url } from '../api/index';
@@ -98,7 +99,7 @@ function Expenses() {
   return (
     <section className="p-4">
       <Helmet>
-        <title>Xərc Kateqoriyaları | Smartcafe</title>
+        <title>{pageTitle('Xərc Kateqoriyaları')}</title>
         <meta name="description" content="Xərc idarəetmə paneli" />
       </Helmet>
 

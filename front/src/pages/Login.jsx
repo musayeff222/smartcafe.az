@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { pageTitle, APP_NAME } from "../config/branding";
 import { Navigate } from "react-router-dom";
 import axios from "axios";
 import { base_url } from "../api/index";
@@ -78,7 +79,7 @@ const Login = () => {
   return (
     <>
       <Helmet>
-        <title>Login | Smartcafe</title>
+        <title>{pageTitle('Login')}</title>
         <meta
           name="description"
           content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi"
@@ -105,7 +106,7 @@ const Login = () => {
               <UtensilsCrossed size={24} />
             </div>
             <div>
-              <div className="text-xl font-bold leading-tight">Smartcafe</div>
+              <div className="text-xl font-bold leading-tight">{APP_NAME}</div>
               <div className="text-xs text-white/70">
                 Restoran idarəetmə sistemi
               </div>
@@ -147,7 +148,7 @@ const Login = () => {
           </div>
 
           <div className="relative z-10 text-xs text-white/60">
-            © {new Date().getFullYear()} Smartcafe · Bütün hüquqlar qorunur
+            © {new Date().getFullYear()} {APP_NAME} · Bütün hüquqlar qorunur
           </div>
         </aside>
 
@@ -157,7 +158,7 @@ const Login = () => {
               <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 grid place-items-center text-white shadow-md">
                 <UtensilsCrossed size={22} />
               </div>
-              <div className="text-2xl font-bold text-slate-800">Smartcafe</div>
+              <div className="text-2xl font-bold text-slate-800">{APP_NAME}</div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/60 border border-slate-100 p-6 sm:p-8">
@@ -296,7 +297,7 @@ const Login = () => {
             </div>
 
             <p className="lg:hidden text-center text-xs text-slate-400 mt-6">
-              © {new Date().getFullYear()} Smartcafe · Bütün hüquqlar qorunur
+              © {new Date().getFullYear()} {APP_NAME} · Bütün hüquqlar qorunur
             </p>
           </div>
         </section>

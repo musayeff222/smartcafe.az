@@ -20,7 +20,7 @@ import Dashboard from "./pages/Dashboard";
 import NotFoundPage from "./pages/NotFoundPage";
 import axios from "axios";
 import DontActiveAcount from "./components/DontActiveAcount";
-import { base_url } from "../src/api/index";
+import { base_url, getAuthHeaders } from "./api/index";
 import Material from "./pages/Material.jsx";
 import Expenses from "./pages/expenses.jsx";
 // import StocksAdd from './components/stocksSetAdd.jsx';
@@ -31,13 +31,6 @@ import { prefetchSecuritySettings } from "./utils/securityPasswords";
 import { useSelector, useDispatch } from "react-redux";
 import { tick } from "./redux/timerSlice.js";
 
-const getHeaders = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  },
-});
 const App = () => {
   const location = useLocation();
   const [ActiveUser, setActiveUser] = useState(false);
@@ -69,7 +62,7 @@ const App = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const response = await axios.get(`${base_url}/own-restaurants`, getHeaders());
+        const response = await axios.get(`${base_url}/own-restaurants`, getAuthHeaders());
       } catch (error) {
         // if (error.response && error.response.status === 401 && error.response.data.message === "Unauthenticated" ) {
         //     setActiveUser(true); // Set access denied if response status is 403
