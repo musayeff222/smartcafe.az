@@ -5,18 +5,26 @@ import Header from "./components/Header";
 import Couriers from "./pages/Couriers";
 import GunlukKasa from "./pages/GunlukKasa";
 import Masalar from "./pages/Masalar";
+import RestaurantDashboard from "./pages/RestaurantDashboard";
 import Stok from "./pages/Stok";
 import MasaTanimlari from "./pages/MasaTanimlari";
 import PersonelTanimlari from "./pages/PersonelTanimlari";
 import Siparisler from "./pages/Siparisler";
 import Musteriler from "./pages/Musteriler";
 import MasaSiparis from "./pages/MasaSiparis";
+import MasaHesabKes from "./pages/MasaHesabKes";
 import MusteriSiparisEkle from "./pages/MusteriSiparisEkle";
 import GenelAyarlar from "./pages/GenelAyarlar";
 import OrderDetailsQrcod from "./pages/OrderDetailsQrcod";
+import WebMenuPage, { WebMenuResolver } from "./pages/WebMenuPage";
+import WebMenuHome, { isWebMenuCustomHost } from "./pages/WebMenuHome";
 import MasaTanimlariId from "./pages/MasaTanimlariId";
 import AdminLogin from "./pages/AdminLogin";
 import Dashboard from "./pages/Dashboard";
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminNotifications from "./pages/admin/AdminNotifications";
+import AdminPassword from "./pages/admin/AdminPassword";
+import AdminAudit from "./pages/admin/AdminAudit";
 import NotFoundPage from "./pages/NotFoundPage";
 import axios from "axios";
 import DontActiveAcount from "./components/DontActiveAcount";
@@ -28,11 +36,16 @@ import StockSetGenel from "./pages/StockSetGenel.jsx";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { prefetchSecuritySettings } from "./utils/securityPasswords";
+import PosScreenLock from "./components/PosScreenLock";
+import { useLanguage } from "./i18n/LanguageContext";
+import { useTheme } from "./context/ThemeContext";
 import { useSelector, useDispatch } from "react-redux";
 import { tick } from "./redux/timerSlice.js";
 
 const App = () => {
   const location = useLocation();
+  const { locale } = useLanguage();
+  const { isDark } = useTheme();
   const [ActiveUser, setActiveUser] = useState(false);
 
 
@@ -50,7 +63,11 @@ const App = () => {
   }, [dispatch, sessions]);
   // Determine if the header should be shown
   const showHeader = !(
-    location.pathname.startsWith("/adminPage") || location.pathname.startsWith("/order-details")
+    location.pathname.startsWith("/adminPage") ||
+    location.pathname.startsWith("/order-details") ||
+    location.pathname.startsWith("/menu") ||
+    location.pathname.includes("/hesab-kes") ||
+    isWebMenuCustomHost()
   );
   const [role, setrole] = useState(localStorage.getItem("role"));
   useEffect(() => {
@@ -60,9 +77,10 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchRestaurant = async () => {
       try {
-        const response = await axios.get(`${base_url}/own-restaurants`, getAuthHeaders());
+        await axios.get(`${base_url}/own-restaurants`, getAuthHeaders());
+        // Dil: ilk acilis DEFAULT_LOCALE (az); istifadechi secimi localStorage-da qalir.
       } catch (error) {
         // if (error.response && error.response.status === 401 && error.response.data.message === "Unauthenticated" ) {
         //     setActiveUser(true); // Set access denied if response status is 403
@@ -78,18 +96,26 @@ const App = () => {
         }
       }
     };
-    fetchOrders();
+    fetchRestaurant();
   }, []);
 
   if (ActiveUser) return <DontActiveAcount sil={setActiveUser} />;
   return (
-    <div>
-      <ToastContainer />
+    <div
+      key={locale}
+      className="min-h-screen bg-[#f5f7fb] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+      <ToastContainer theme={isDark ? "dark" : "light"} />
+      <PosScreenLock />
       {showHeader && <Header />}
       <Routes>
-        <Route path="/" element={<Login />} />
+        <Route path="/" element={<WebMenuHome />} />
+        <Route path="/panel" element={<RestaurantDashboard />} />
         <Route path="/masalar" element={<Masalar />} />
         <Route path="/masa-siparis/:id" element={<MasaSiparis />} />
+        <Route path="/masa-siparis/:id/hesab-kes" element={<MasaHesabKes />} />
+        <Route path="/order-details/:token" element={<OrderDetailsQrcod />} />
+        <Route path="/menu" element={<WebMenuResolver />} />
+        <Route path="/menu/:slug" element={<WebMenuPage />} />
         {role !== "waiter" && (
           <>
             <Route path="/siparisler" element={<Siparisler />} />
@@ -105,12 +131,16 @@ const App = () => {
             <Route path="/material" element={<Material />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/stocksadd" element={<StockSetGenel />} />
-            <Route path="/order-details/:token" element={<OrderDetailsQrcod />} />
           </>
         )}
 
         <Route path="/adminPage" element={<AdminLogin />} />
-        <Route path="/adminPage/dashboard" element={<Dashboard />} />
+        <Route element={<AdminLayout />}>
+          <Route path="/adminPage/dashboard" element={<Dashboard />} />
+          <Route path="/adminPage/notifications" element={<AdminNotifications />} />
+          <Route path="/adminPage/password" element={<AdminPassword />} />
+          <Route path="/adminPage/audit" element={<AdminAudit />} />
+        </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </div>

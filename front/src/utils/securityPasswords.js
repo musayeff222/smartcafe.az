@@ -18,40 +18,27 @@ const authHeaders = () => ({
 let settingsCache = null;
 let fetchPromise = null;
 
-export const PASSWORD_CATEGORIES = [
-  {
-    key: "azaltma",
-    label: "Məhsul azaltma",
-    description:
-      "Masadakı məhsul sayını azaltmaq üçün tələb olunan şifrə",
-    defaultPassword: "5669",
-  },
-  {
-    key: "silme",
-    label: "Silmə",
-    description: "Masadan məhsul silmək üçün tələb olunan şifrə",
-    defaultPassword: "5669",
-  },
-  {
-    key: "legv",
-    label: "Masa ləğvi",
-    description: "Masanı bağlamaq / ləğv etmək üçün tələb olunan şifrə",
-    defaultPassword: "3478",
-  },
-  {
-    key: "anbar",
-    label: "Anbar",
-    description:
-      "Anbar, stok, set və məhsul tənzimləmələri üçün tələb olunan şifrə",
-    defaultPassword: "090922",
-  },
-  {
-    key: "kassa",
-    label: "Kassa",
-    description: "Gündəlik kassa və maliyyə hesabatları üçün tələb olunan şifrə",
-    defaultPassword: "090922",
-  },
+const PASSWORD_CATEGORY_META = [
+  { key: "azaltma", defaultPassword: "5669" },
+  { key: "silme", defaultPassword: "5669" },
+  { key: "legv", defaultPassword: "3478" },
+  { key: "anbar", defaultPassword: "090922" },
+  { key: "kassa", defaultPassword: "090922" },
+  { key: "ekran", defaultPassword: "1234" },
 ];
+
+/** @param {(key: string, params?: object) => string} [t] */
+export function getPasswordCategories(t) {
+  const tr = typeof t === "function" ? t : (k) => k;
+  return PASSWORD_CATEGORY_META.map(({ key, defaultPassword }) => ({
+    key,
+    label: tr(`pwd.${key}Label`),
+    description: tr(`pwd.${key}Desc`),
+    defaultPassword,
+  }));
+}
+
+export const PASSWORD_CATEGORIES = getPasswordCategories();
 
 export function invalidateSecuritySettingsCache() {
   settingsCache = null;
@@ -112,7 +99,17 @@ export function getAllEnabled() {
   return out;
 }
 
+/** Super admin paneldən «Restorana gir» — ekran PIN-ləri tələb olunmur */
+export function shouldBypassSecurityPins() {
+  try {
+    return localStorage.getItem("super_admin_pin_bypass") === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function isCategoryEnabled(categoryKey) {
+  if (shouldBypassSecurityPins()) return false;
   if (!settingsCache?.categories) return true;
   const row = settingsCache.categories.find((c) => c.key === categoryKey);
   if (!row) return true;
@@ -129,6 +126,7 @@ export function hasCustomPinFor(categoryKey) {
  * Serverdə Hash::check — şifrə düzgünlüyü.
  */
 export async function verifyPassword(categoryKey, attempt) {
+  if (shouldBypassSecurityPins()) return true;
   if (!isCategoryEnabled(categoryKey)) return true;
   const res = await axios.post(
     `${base_url}/restaurant/security-settings/verify`,

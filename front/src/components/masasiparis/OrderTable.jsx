@@ -9,6 +9,7 @@ const OrderTable = ({
   handleRemoveStock2,
   setPendingRemoveData,
   setShowPasswordScreen,
+  tableClassName = "max-h-[400px]",
 }) => {
   // İsmi 12 karakterden sonra kısalt
   const truncateName = (name) => {
@@ -18,7 +19,7 @@ const OrderTable = ({
   };
 
   return (
-    <div className="w-full overflow-x-auto overflow-y-auto max-h-[400px]">
+    <div className={`w-full overflow-x-auto overflow-y-auto ${tableClassName}`}>
       <table className="min-w-full bg-white border border-gray-200 rounded-lg shadow-md">
         <thead className="bg-gray-100 border-b border-gray-300 text-xs sm:text-sm">
           <tr>

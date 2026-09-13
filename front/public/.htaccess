@@ -1,6 +1,7 @@
 # ============================================================
-# SmartCafe Frontend (React SPA) — Hostinger Apache .htaccess
-# Domain: smartcafe.az (API ayrı subdomain'de: api.smartcafe.az)
+# SmartCafe Frontend (React SPA / POS) — Hostinger Apache .htaccess
+# Canlı document root: login.smartcafe.az (API: api.smartcafe.az)
+# Marketing sayfası smartcafe.az → repodaki marketing/ klasörü (bu .htaccess orada kullanılmaz).
 # Bu dosya `npm run build` sonrası build/ klasörüne kopyalanır.
 # ============================================================
 
@@ -13,9 +14,9 @@
     RewriteCond %{HTTP:X-Forwarded-Proto} !https
     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-    # www varsa non-www'ye çek (tercihe göre değiştir)
-    RewriteCond %{HTTP_HOST} ^www\.smartcafe\.az$ [NC]
-    RewriteRule ^ https://smartcafe.az%{REQUEST_URI} [L,R=301]
+    # www.login → login (POS hostunda kullan)
+    RewriteCond %{HTTP_HOST} ^www\.login\.smartcafe\.az$ [NC]
+    RewriteRule ^ https://login.smartcafe.az%{REQUEST_URI} [L,R=301]
 
     # Var olan dosya/dizinlere dokunma
     RewriteCond %{REQUEST_FILENAME} -f [OR]

@@ -12,6 +12,7 @@ class StockGroup extends Model
     protected $fillable = [
         'restaurant_id',
         'name',
+        'sort_order',
         'image',
         'color',
         'kitchen_printer_active',

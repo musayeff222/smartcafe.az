@@ -9,10 +9,15 @@ const apiBaseFromEnv = stripTrailingSlash(process.env.REACT_APP_API_BASE_URL);
 const imgBaseFromEnv = stripTrailingSlash(process.env.REACT_APP_IMG_BASE_URL);
 const domainFromEnv  = stripTrailingSlash(process.env.REACT_APP_DOMAIN_URL);
 
-// Geriye dönük uyumluluk: env tanımlı değilse eski smartcafe.az değerlerine düş.
-export const base_url  = apiBaseFromEnv || 'https://api.smartcafe.az/api';
-export const img_url   = imgBaseFromEnv || 'https://api.smartcafe.az/storage';
-export const domain_url = domainFromEnv || 'https://smartcafe.az';
+const isProd = process.env.NODE_ENV === 'production';
+
+// Env yoxdursa: development-da lokal API, production-da canlı domen.
+export const base_url =
+  apiBaseFromEnv || (isProd ? 'https://api.smartcafe.az/api' : 'http://127.0.0.1:8000/api');
+export const img_url =
+  imgBaseFromEnv || (isProd ? 'https://api.smartcafe.az/storage' : 'http://127.0.0.1:8000/storage');
+export const domain_url =
+  domainFromEnv || (isProd ? 'https://login.smartcafe.az' : 'http://localhost:3000');
 
 /** Bearer token ile JSON istekleri (çoğu axios çağrısı bunu kullanır). */
 export const getAuthHeaders = () => {

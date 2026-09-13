@@ -179,4 +179,24 @@ class RestaurantController extends Controller
 
         return response()->json($restaurant);
     }
+
+    /**
+     * Update interface language for own restaurant.
+     */
+    public function updateOwnRestaurantLanguage(Request $request)
+    {
+        $restaurant = $request->user()->restaurant;
+
+        if (! $restaurant) {
+            return response()->json(['message' => 'No restaurant associated with this user.'], 404);
+        }
+
+        $validated = $request->validate([
+            'language' => 'required|string|in:az,tr,ru,en',
+        ]);
+
+        $restaurant->update($validated);
+
+        return response()->json($restaurant);
+    }
 }

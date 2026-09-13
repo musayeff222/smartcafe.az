@@ -5,12 +5,13 @@
  * Front (PASSWORD_CATEGORIES) ilə eyni saxlayın.
  */
 return [
-    'categories' => ['azaltma', 'silme', 'legv', 'anbar', 'kassa'],
+    'categories' => ['azaltma', 'silme', 'legv', 'anbar', 'kassa', 'ekran'],
     'defaults' => [
         'azaltma' => '5669',
         'silme' => '5669',
         'legv' => '3478',
         'anbar' => '090922',
         'kassa' => '090922',
+        'ekran' => '1234',
     ],
 ];

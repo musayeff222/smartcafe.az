@@ -26,6 +26,9 @@ class User extends Authenticatable
         'restaurant_id',
         'is_active',
         'active_until',
+        'pending_email',
+        'email_change_token',
+        'email_change_expires_at',
     ];
 
     /**
@@ -81,6 +84,3 @@ class User extends Authenticatable
         return $this->hasMany(Payment::class);
     }
 }
-
-$a = new User();
-

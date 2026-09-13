@@ -25,6 +25,24 @@ use App\Http\Controllers\TimePresetController;
 use App\Http\Controllers\TableTimeSessionController;
 use App\Http\Controllers\TimeChargeController;
 use App\Http\Controllers\RestaurantSecuritySettingController;
+use App\Http\Controllers\MarketingPageController;
+use App\Http\Controllers\MarketingSiteContentController;
+use App\Http\Controllers\MarketingPlanController;
+use App\Http\Controllers\MarketingPromoCodeController;
+use App\Http\Controllers\RestaurantDashboardController;
+use App\Http\Controllers\RestaurantWebController;
+use App\Http\Controllers\RestaurantWebDomainController;
+use App\Http\Controllers\RestaurantWebPromoCodeController;
+use App\Http\Controllers\AdminRestaurantController;
+use App\Http\Controllers\AdminNotificationController;
+use App\Http\Controllers\CashRegisterController;
+use App\Http\Controllers\CrmController;
+use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\RestaurantTelegramSettingController;
+use App\Http\Controllers\SystemBackupController;
+use App\Http\Controllers\TelegramSettingsController;
+use App\Http\Controllers\WebsitePackageController;
+use App\Http\Controllers\WebsiteSettingsController;
 
 use App\Models\Table;
 
@@ -33,9 +51,19 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 
-Route::post('login', [AuthController::class, 'login']);
+Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 
+Route::post('password/forgot', [PasswordResetController::class, 'forgot'])
+    ->middleware('throttle:5,10');
+Route::post('password/reset', [PasswordResetController::class, 'reset'])
+    ->middleware('throttle:6,1');
+Route::get('password/reset/validate', [PasswordResetController::class, 'validateToken'])
+    ->middleware('throttle:30,1');
 
+Route::get('marketing-page', [MarketingPageController::class, 'show'])
+    ->middleware('throttle:120,1');
+Route::get('marketing/page', [MarketingPageController::class, 'show']);
+Route::get('marketing/packages', [MarketingPageController::class, 'packages']);
 
 Route::middleware('auth:sanctum')->group(function () {
 // Route::middleware(['auth:sanctum', CheckTokenExpiration::class])->group(function () {
@@ -48,7 +76,60 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:super-admin')->group(function () {
         Route::apiResource('users', UserController::class);
         // Route::apiResource('restaurants', RestaurantController::class);
+        Route::post('admin-restaurants/{restaurant}/access-token', [SuperAdminController::class, 'issueRestaurantAccessToken']);
         Route::apiResource('admin-restaurants', SuperAdminController::class);
+
+        Route::get('marketing/site-content', [MarketingSiteContentController::class, 'show']);
+        Route::put('marketing/site-content', [MarketingSiteContentController::class, 'update']);
+        Route::apiResource('marketing-plans', MarketingPlanController::class)
+            ->parameters(['marketing-plans' => 'plan']);
+        Route::apiResource('marketing-promos', MarketingPromoCodeController::class)
+            ->parameters(['marketing-promos' => 'promo']);
+
+        Route::get('admin/restaurants/{id}/summary', [AdminRestaurantController::class, 'summary']);
+        Route::get('admin/restaurants/{id}/notes', [AdminRestaurantController::class, 'notesIndex']);
+        Route::post('admin/restaurants/{id}/notes', [AdminRestaurantController::class, 'notesStore'])
+            ->middleware('throttle:30,1');
+        Route::delete('admin/restaurants/{id}/notes/{noteId}', [AdminRestaurantController::class, 'notesDestroy'])
+            ->middleware('throttle:30,1');
+        Route::post('admin/restaurants/{id}/reset-password', [AdminRestaurantController::class, 'resetPassword'])
+            ->middleware('throttle:10,1');
+        Route::post('admin/restaurants/bulk', [AdminRestaurantController::class, 'bulkUpdate'])
+            ->middleware('throttle:20,1');
+        Route::get('admin/audit-logs', [SuperAdminController::class, 'auditLogs']);
+        Route::get('admin/me', [CrmController::class, 'me']);
+        Route::get('admin/crm/stats', [CrmController::class, 'stats']);
+        Route::get('admin/crm/roles', [CrmController::class, 'roles']);
+        Route::get('admin/notifications', [AdminNotificationController::class, 'index']);
+        Route::post('admin/notifications', [AdminNotificationController::class, 'store'])
+            ->middleware('throttle:30,1');
+        Route::put('admin/change-password', [AuthController::class, 'changePassword'])
+            ->middleware('throttle:5,1');
+        Route::put('admin/change-email', [AuthController::class, 'changeEmail'])
+            ->middleware('throttle:5,1');
+        Route::get('admin/website-settings', [WebsiteSettingsController::class, 'show']);
+        Route::put('admin/website-settings', [WebsiteSettingsController::class, 'update']);
+        Route::post('admin/website-settings/upload', [WebsiteSettingsController::class, 'upload'])
+            ->middleware('throttle:40,1');
+        Route::get('admin/packages', [WebsitePackageController::class, 'index']);
+        Route::post('admin/packages', [WebsitePackageController::class, 'store']);
+        Route::put('admin/packages/reorder', [WebsitePackageController::class, 'reorder']);
+        Route::put('admin/packages/{package}', [WebsitePackageController::class, 'update']);
+        Route::delete('admin/packages/{package}', [WebsitePackageController::class, 'destroy']);
+        Route::get('admin/backups', [SystemBackupController::class, 'index']);
+        Route::post('admin/backups', [SystemBackupController::class, 'store'])
+            ->middleware('throttle:5,1');
+        Route::get('admin/backups/{backup}/download', [SystemBackupController::class, 'download']);
+        Route::delete('admin/backups/{backup}', [SystemBackupController::class, 'destroy'])
+            ->middleware('throttle:10,1');
+        Route::post('admin/backups/{backup}/restore', [SystemBackupController::class, 'restore'])
+            ->middleware('throttle:3,1');
+        Route::get('admin/telegram', [TelegramSettingsController::class, 'show']);
+        Route::put('admin/telegram', [TelegramSettingsController::class, 'update']);
+        Route::post('admin/telegram/test', [TelegramSettingsController::class, 'test'])
+            ->middleware('throttle:10,1');
+        Route::get('admin/web-domains', [RestaurantWebDomainController::class, 'index']);
+        Route::patch('admin/web-domains/{webSetting}', [RestaurantWebDomainController::class, 'update']);
     });
 
     Route::middleware('has.restaurant')->group(function () {
@@ -93,6 +174,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Manage restoran settings
         Route::get('own-restaurants', [RestaurantController::class, 'getOwnRestaurant']);
+        Route::get('restaurant/ui-settings', [\App\Http\Controllers\RestaurantUiSettingsController::class, 'show']);
+        Route::get('restaurant/notifications', [AdminNotificationController::class, 'inbox']);
+        Route::post('restaurant/notifications/{id}/read', [AdminNotificationController::class, 'markRead']);
+        Route::post('restaurant/notifications/read-all', [AdminNotificationController::class, 'markAllRead']);
+        Route::get('restaurant/telegram-settings', [RestaurantTelegramSettingController::class, 'show']);
+        Route::post('restaurant/telegram-settings/bill-printed', [RestaurantTelegramSettingController::class, 'billPrinted'])
+            ->middleware('throttle:40,1');
 
         Route::get('restaurant/security-settings', [RestaurantSecuritySettingController::class, 'index']);
         Route::post('restaurant/security-settings/verify', [RestaurantSecuritySettingController::class, 'verify'])
@@ -100,14 +188,28 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::middleware('permission:manage-restaurants')->group(function () {
             Route::put('own-restaurants', [RestaurantController::class, 'updateOwnRestaurant']);
+            Route::put('restaurant/ui-settings', [\App\Http\Controllers\RestaurantUiSettingsController::class, 'update']);
+            Route::put('own-restaurants/language', [RestaurantController::class, 'updateOwnRestaurantLanguage']);
             Route::get('restaurant/print-mode', [RestaurantController::class, 'getPrintMode']);
             Route::put('restaurant/security-settings', [RestaurantSecuritySettingController::class, 'update']);
+            Route::put('restaurant/telegram-settings', [RestaurantTelegramSettingController::class, 'update']);
+            Route::post('restaurant/telegram-settings/test', [RestaurantTelegramSettingController::class, 'test'])
+                ->middleware('throttle:10,1');
+            Route::get('restaurant/web-settings', [RestaurantWebController::class, 'showSettings']);
+            Route::put('restaurant/web-settings', [RestaurantWebController::class, 'updateSettings']);
+            Route::post('restaurant/web-settings/banner', [RestaurantWebController::class, 'uploadBanner']);
+            Route::delete('restaurant/web-settings/banner', [RestaurantWebController::class, 'removeBanner']);
+            Route::apiResource('restaurant/web-promo-codes', RestaurantWebPromoCodeController::class)
+                ->parameters(['web-promo-codes' => 'id']);
         });
 
         Route::middleware('permission:manage-tanimlar')->group(function () {
+            Route::put('stock-groups/reorder', [StockGroupController::class, 'reorder']);
             Route::apiResource('stock-groups', StockGroupController::class);
             Route::apiResource('stocks', StockController::class);
             Route::get('stock-refresh',[StockController::class,'stockFresh']);
+            Route::post('wolt-menu/preview', [\App\Http\Controllers\WoltMenuImportController::class, 'preview']);
+            Route::post('wolt-menu/import', [\App\Http\Controllers\WoltMenuImportController::class, 'import']);
             Route::apiResource('couriers', CourierController::class);
             Route::apiResource('table-groups', TableGroupController::class);
             Route::apiResource('tables', TableController::class);
@@ -117,6 +219,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::middleware('permission:access-payments')->group(function () {
             Route::get('payments', [PaymentController::class, 'index']);
+            Route::get('cash-register/status', [CashRegisterController::class, 'status']);
+            Route::post('cash-register/open', [CashRegisterController::class, 'open']);
+            Route::post('cash-register/close', [CashRegisterController::class, 'close']);
             Route::put('restaurant/times', [RestaurantController::class, 'updateTimes']);
             Route::middleware('permission:manage-payments')->group(function () {
                 Route::delete('order/{orderId}/payments', [PaymentController::class, 'destroyByOrderId']);
@@ -186,6 +291,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('table-groups', [TableGroupController::class, 'index']);
 
+        Route::get('/restaurant-dashboard', [RestaurantDashboardController::class, 'index']);
+
         Route::get('/tables', [TableController::class, 'index']);
         Route::get('/tables/{id}', [TableController::class, 'show']);
         Route::get('/tables/{id}/order', [TableController::class, 'getTableWithApprovedOrders']);
@@ -201,6 +308,8 @@ Route::middleware('auth:sanctum')->group(function () {
         
         Route::middleware('permission:manage-quick-orders')->group(function () {
 
+            Route::get('quick-orders/web-inbox', [QuickOrderController::class, 'webInbox']);
+            Route::post('quick-orders/{id}/acknowledge-web', [QuickOrderController::class, 'acknowledgeWeb']);
             Route::apiResource('quick-orders', QuickOrderController::class);
             Route::post('quick-orders/{id}/add-stock', [QuickOrderController::class, 'addStock']);
 //            Route::post('quick-orders/{id}/subtract-stock', [QuickOrderController::class, 'subtractStock']);
@@ -232,14 +341,24 @@ Route::post('/raw-materials/{id}/increase', [RawMaterialController::class, 'incr
 Route::post('/raw-materials/{id}/decrease', [RawMaterialController::class, 'decreaseStock']);
 Route::get('/raw-materials/{id}/logs', [RawMaterialController::class, 'getStockLogs']);
 
-// Xercler 
+// Xərclər
+Route::get('/expenses/stats', [ExpenseController::class, 'stats']);
+Route::get('/expenses/grouped', [ExpenseController::class, 'grouped']);
+Route::get('/expenses/export', [ExpenseController::class, 'export']);
+Route::put('/expenses/settings', [ExpenseController::class, 'updateSettings']);
+Route::get('/expenses/{id}', [ExpenseController::class, 'show'])->whereNumber('id');
+Route::put('/expenses/{id}', [ExpenseController::class, 'update'])->whereNumber('id');
+Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy'])->whereNumber('id');
+Route::get('/expenses', [ExpenseController::class, 'index']);
+Route::post('/expenses', [ExpenseController::class, 'store']);
 
 Route::prefix('expense-categories')->group(function () {
-    Route::post('/', [ExpenseController::class, 'createCategory']);
     Route::get('/', [ExpenseController::class, 'listCategories']);
+    Route::post('/', [ExpenseController::class, 'createCategory']);
+    Route::put('/{category}', [ExpenseController::class, 'updateCategory']);
+    Route::delete('/{category}', [ExpenseController::class, 'deleteCategoryAuth']);
     Route::post('/{category}/expenses', [ExpenseController::class, 'addExpense']);
     Route::get('/{category}/expenses', [ExpenseController::class, 'listExpenses']);
-    Route::delete('/{category}', [ExpenseController::class, 'deleteCategory']);
 });
 
 
@@ -248,4 +367,12 @@ Route::prefix('expense-categories')->group(function () {
 Route::get('qr/{id}/table', [TableController::class, 'getTableByQrCode']);
 Route::get('qr/{id}/menu', [TableController::class, 'getQrMenu']);
 Route::post('qr/{id}/order', [TableController::class, 'createQrOrder']);
+
+Route::middleware('web-menu.cors')->group(function () {
+    Route::options('web-menu/{any}', fn () => response('', 204))->where('any', '.*');
+    Route::get('web-menu/resolve', [RestaurantWebController::class, 'resolveByDomain']);
+    Route::get('web-menu/{slug}', [RestaurantWebController::class, 'publicMenu']);
+    Route::post('web-menu/{slug}/promo/validate', [RestaurantWebController::class, 'validatePromo']);
+    Route::post('web-menu/{slug}/order', [RestaurantWebController::class, 'placeOrder']);
+});
 

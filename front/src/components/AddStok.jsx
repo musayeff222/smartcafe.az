@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { toast } from "react-toastify";
 import AccessDenied from "./AccessDenied";
 import { base_url } from "../api/index";
+import { StockAdditionalPrices } from "./StockAdditionalPrices";
 import { FaTrash } from "react-icons/fa";
+
+const buildValidRawMaterials = (rows) =>
+  rows
+    .filter((mat) => mat.id != null && String(mat.id).trim() !== "")
+    .map((mat) => ({
+      id: parseInt(mat.id, 10),
+      quantity: parseFloat(mat.quantity) || 1,
+    }))
+    .filter((mat) => !Number.isNaN(mat.id));
 
 // Function to get authorization headers
 const getAuthHeaders = () => {
@@ -14,63 +25,6 @@ const getAuthHeaders = () => {
     },
   };
 };
-
-// Component for additional price inputs
-const AdditionalPriceInput = ({
-  prices,
-  onPriceChange,
-  onCountChange,
-  onNumberChange,
-  addPrice,
-  removePrice,
-}) => (
-  <>
-    {prices.map((priceObj, index) => (
-      <div key={index} className="flex mb-3 gap-2">
-        {/* Quantity Input */}
-        <input
-          className="border rounded-l py-2 px-3 w-5/12 text-sm font-medium"
-          type="number"
-          value={priceObj.count}
-          onChange={(e) => onNumberChange(e, index)}
-          placeholder="1 "
-          required
-        />
-        <input
-          className="border rounded-l py-2 px-3 w-5/12 text-sm font-medium"
-          type="string"
-          value={priceObj.unit}
-          onChange={(e) => onCountChange(e, index)}
-          placeholder="Ədəd"
-          required
-        />
-        {/* Price Input */}
-        <input
-          className="border rounded-l py-2 px-3 w-5/12 text-sm font-medium"
-          type="number"
-          value={priceObj.price}
-          onChange={(e) => onPriceChange(e, index)}
-          step="0.01"
-          placeholder="20 AZN"
-          required
-        />
-        <button
-          type="button"
-          onClick={() => removePrice(index)}
-          className="border shadow-md bg-gray-300 hover:bg-gray-100 text-center w-2/12 rounded-r py-2 px-3 cursor-pointer">
-          <FaTrash className="text-red-500" />
-        </button>
-      </div>
-    ))}
-    <button
-      type="button"
-      onClick={addPrice}
-      className="border mr-4 mb-2 hover:bg-sky-500 rounded py-2 px-4 bg-sky-600 text-white text-sm font-medium mt-2">
-      Çoxlu qiymət və say əlave et
-    </button>
-  </>
-);
-
 function AddStok({ setAddStok }) {
   const [formData, setFormData] = useState({
     name: "",
@@ -78,6 +32,7 @@ function AddStok({ setAddStok }) {
     image: null,
     show_on_qr: false,
     price: 0,
+    cost_price: "",
     amount: 0,
     alert_critical: false,
     critical_amount: 1,
@@ -189,21 +144,27 @@ function AddStok({ setAddStok }) {
     if (formData.image) formDataToSend.append("image", formData.image);
     formDataToSend.append("show_on_qr", formData.show_on_qr ? "1" : "0");
     formDataToSend.append("price", formData.price);
+    if (formData.cost_price !== "" && formData.cost_price != null) {
+      formDataToSend.append("cost_price", formData.cost_price);
+    }
     formDataToSend.append("amount", formData.amount); // Miqdar burada təyin olunur
     formDataToSend.append("description", formData.description);
     formDataToSend.append("alert_critical", formData.alert_critical ? "1" : "0");
     formDataToSend.append("critical_amount", formData.critical_amount);
     formDataToSend.append("item_type", formData.item_type);
 
-    // Append additional prices
-    formData.additionalPrices.forEach((priceObj, index) => {
+    const validAdditionalPrices = formData.additionalPrices.filter(
+      (p) => p.price !== "" && p.unit !== "" && p.count !== ""
+    );
+    validAdditionalPrices.forEach((priceObj, index) => {
       formDataToSend.append(`additionalPrices[${index}][price]`, priceObj.price);
       formDataToSend.append(`additionalPrices[${index}][unit]`, priceObj.unit);
       formDataToSend.append(`additionalPrices[${index}][count]`, priceObj.count);
     });
 
+    const validRawMaterials = buildValidRawMaterials(selectedRawMaterials);
+
     try {
-      const token = localStorage.getItem("token");
       const stockResponse = await axios.post(`${base_url}/stocks`, formDataToSend, {
         ...getAuthHeaders(),
         headers: {
@@ -213,25 +174,23 @@ function AddStok({ setAddStok }) {
       });
 
       const stockId = stockResponse.data?.id;
-      console.log("stockId", stockId);
 
-      if (stockId && selectedRawMaterials.length > 0) {
-        await axios.post(
-          `${base_url}/stocks/${stockId}/attach-raw-material`,
-          {
-            raw_materials: selectedRawMaterials.map((mat) => ({
-              id: parseInt(mat.id),
-              quantity: parseFloat(mat.quantity),
-            })),
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+      if (stockId && validRawMaterials.length > 0) {
+        try {
+          await axios.post(
+            `${base_url}/stocks/${stockId}/attach-raw-material`,
+            { raw_materials: validRawMaterials },
+            getAuthHeaders()
+          );
+        } catch (attachErr) {
+          console.warn("Raw material attach failed:", attachErr);
+          toast.warning("Məhsul yaradıldı, amma xammallar bağlanmadı.");
+          setAddStok(false);
+          return;
+        }
       }
 
+      toast.success("Məhsul əlavə olundu.");
       setAddStok(false);
     } catch (error) {
       if (
@@ -242,7 +201,15 @@ function AddStok({ setAddStok }) {
         setAccessDenied(true);
       } else {
         console.error("Error adding stock:", error);
-        alert("An error occurred while adding the stock. Please try again later.");
+        const apiMsg = error.response?.data?.message;
+        const validation =
+          error.response?.data?.errors &&
+          Object.values(error.response.data.errors).flat().join(" ");
+        alert(
+          validation ||
+            apiMsg ||
+            "Məhsul əlavə edilərkən xəta baş verdi. Yenidən cəhd edin."
+        );
       }
     }
   };
@@ -278,16 +245,15 @@ function AddStok({ setAddStok }) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4 w-full">
-      <div className="bg-gray-50 rounded border p-3 w-full md:w-1/2">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 w-full md:w-1/2">
         {/* Image Upload */}
-        <h3 className="mb-2">Resim (.jpg , .png max:2048 kb)</h3>
+        <h3 className="mb-2">Şəkil (istəyə bağlı — .jpg, .png, max 2048 KB)</h3>
         <input
           className="border rounded py-2 px-3 w-full text-sm font-medium mb-5"
           type="file"
           name="image"
           onChange={handleFileChange}
-          accept=".jpg,.png"
-          required
+          accept=".jpg,.png,.jpeg,.webp"
         />
 
         {/* Other Form Fields */}
@@ -338,15 +304,14 @@ function AddStok({ setAddStok }) {
           <option value="sayilmiyan">Sayilmiyan</option>
         </select>
 
-        <button type="submit" className="bg-sky-600 font-medium py-2 px-4 rounded text-white">
+        <button type="submit" className="w-full rounded-xl bg-indigo-600 font-semibold py-2.5 px-4 text-white hover:bg-indigo-700 transition">
           Saxla
         </button>
       </div>
 
-      <div className="bg-gray-50 flex flex-col rounded border p-3 w-full md:w-1/2">
+      <div className="bg-slate-50/80 flex flex-col rounded-xl border border-slate-200 p-4 w-full md:w-1/2">
         {/* Main Price */}
         <h3 className="mb-2">Satış qiyməti</h3>
-        {/* Additional Prices */}
         <div className="flex mb-3 gap-2">
           <input
             className="border rounded py-2 px-3 w-10/12 text-sm font-medium"
@@ -355,7 +320,25 @@ function AddStok({ setAddStok }) {
             value={formData.price}
             onChange={handleChange}
             step="0.01"
+            min="0"
             required
+          />
+          <div className="border border-l-0 bg-gray-50 text-center w-2/12 rounded-r py-2 px-3">
+            ₼
+          </div>
+        </div>
+
+        <label className="text-sm font-semibold mb-2">Maya dəyəri (istəyə bağlı)</label>
+        <div className="flex mb-3 gap-2">
+          <input
+            className="border rounded py-2 px-3 w-10/12 text-sm font-medium"
+            type="number"
+            name="cost_price"
+            value={formData.cost_price}
+            onChange={handleChange}
+            step="0.01"
+            min="0"
+            placeholder="Boş buraxa bilərsiniz"
           />
           <div className="border border-l-0 bg-gray-50 text-center w-2/12 rounded-r py-2 px-3">
             ₼
@@ -370,7 +353,7 @@ function AddStok({ setAddStok }) {
           placeholder="Məhsulun təsviri"
         />
 
-        <AdditionalPriceInput
+        <StockAdditionalPrices
           prices={formData.additionalPrices}
           onNumberChange={handleAdditionalNumberChange}
           onPriceChange={handleAdditionalPriceChange}
@@ -421,7 +404,7 @@ function AddStok({ setAddStok }) {
                     className="border rounded py-2 px-3 w-full text-sm font-medium"
                     value={material.id}
                     onChange={(e) => handleRawMaterialChange(index, "id", e.target.value)}
-                    required>
+                  >
                     <option value="">Seç</option>
                     {rawMaterials.map((raw) => (
                       <option key={raw.id} value={raw.id}>

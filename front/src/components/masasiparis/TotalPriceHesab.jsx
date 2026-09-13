@@ -5,7 +5,7 @@ import ScreenPassword from "../../components/ScreenPassword2";
 
 
 
-const TotalPriceHesab = ({ totalPrice, setHesabKes, setHandleModal, handlePrint, handleDeleteMasa }) => {
+const TotalPriceHesab = ({ totalPrice, onOpenHesabKes, setHandleModal, handlePrint, handleDeleteMasa }) => {
   const navigate = useNavigate();
 
   const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
@@ -16,7 +16,7 @@ const [isPasswordConfirmed, setIsPasswordConfirmed] = React.useState(false);
       {totalPrice && (
         <>
           <button
-            onClick={() => setHesabKes(true)}
+            onClick={() => onOpenHesabKes?.()}
             className="bg-green-500 text-white py-2 px-4 rounded flex items-center gap-2"
           >
             Hesap kes

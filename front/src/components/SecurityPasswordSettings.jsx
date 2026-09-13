@@ -1,7 +1,7 @@
 /**
  * POS təhlükəsizlik şifrələri — serverdə (MySQL) bcrypt; idarəetmə manage-restaurants icazəsi ilə.
  */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import {
   ShieldCheck,
@@ -14,8 +14,9 @@ import {
   Lock,
   RotateCcw,
 } from "lucide-react";
+import { useLanguage } from "../i18n/LanguageContext";
 import {
-  PASSWORD_CATEGORIES,
+  getPasswordCategories,
   getAllEnabled,
   getAllPasswords,
   setCategoryEnabled,
@@ -24,6 +25,8 @@ import {
   resetCustomPin,
   hasCustomPinFor,
 } from "../utils/securityPasswords";
+import { useUiSettings } from "../context/UiSettingsContext";
+import { SCREEN_LOCK_IDLE_OPTIONS, getScreenLockIdleSeconds } from "../config/uiSettings";
 
 const Switch = ({ checked, onChange, ariaLabel }) => (
   <button
@@ -45,6 +48,7 @@ const Switch = ({ checked, onChange, ariaLabel }) => (
 );
 
 const PasswordKeypad = ({ category, onClose, onSaved }) => {
+  const { t } = useLanguage();
   const [value, setValue] = useState("");
   const [confirm, setConfirm] = useState("");
   const [step, setStep] = useState(1);
@@ -69,7 +73,7 @@ const PasswordKeypad = ({ category, onClose, onSaved }) => {
 
   const handleNext = () => {
     if (value.length < 4) {
-      toast.warn("Şifrə ən az 4 rəqəm olmalıdır", { position: "top-center" });
+      toast.warn(t("pwd.minDigits"), { position: "top-center" });
       return;
     }
     setStep(2);
@@ -77,7 +81,7 @@ const PasswordKeypad = ({ category, onClose, onSaved }) => {
 
   const handleSave = async () => {
     if (confirm !== value) {
-      toast.error("Şifrələr uyğun gəlmir", { position: "top-center" });
+      toast.error(t("pwd.mismatch"), { position: "top-center" });
       return;
     }
     setSaving(true);
@@ -240,9 +244,17 @@ const PasswordKeypad = ({ category, onClose, onSaved }) => {
 };
 
 const SecurityPasswordSettings = () => {
+  const { t, locale } = useLanguage();
+  const { settings, updateSettings } = useUiSettings();
+  const passwordCategories = useMemo(
+    () => getPasswordCategories(t),
+    [t, locale]
+  );
   const [, bump] = useState(0);
   const [editingCategory, setEditingCategory] = useState(null);
   const [listLoading, setListLoading] = useState(true);
+  const [idleSeconds, setIdleSeconds] = useState(() => getScreenLockIdleSeconds(settings));
+  const [savingIdle, setSavingIdle] = useState(false);
 
   const refresh = () => bump((v) => v + 1);
 
@@ -251,7 +263,7 @@ const SecurityPasswordSettings = () => {
     try {
       await refreshSecuritySettings();
     } catch {
-      toast.error("Tənzimləmələri yükləmək alınmadı", {
+      toast.error(t("pwd.loadError"), {
         position: "top-center",
       });
     } finally {
@@ -270,6 +282,10 @@ const SecurityPasswordSettings = () => {
     return () => window.removeEventListener("security-settings-updated", onUpd);
   }, []);
 
+  useEffect(() => {
+    setIdleSeconds(getScreenLockIdleSeconds(settings));
+  }, [settings]);
+
   const passwords = getAllPasswords();
   const enabled = getAllEnabled();
 
@@ -281,23 +297,19 @@ const SecurityPasswordSettings = () => {
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="text-base sm:text-lg font-bold text-slate-800">
-            Şifrə Nizamlaması
+            {t("pwd.title")}
           </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Pin kodları restoranınız üçün MySQL-də{" "}
-            <span className="font-medium text-slate-600">bcrypt</span> hash kimi
-            saxlanır; bütün cihazlar eyni qaydaları görür.
-          </p>
+          <p className="text-xs text-slate-500 mt-0.5">{t("pwd.subtitle")}</p>
         </div>
       </div>
 
       {listLoading ? (
         <div className="px-5 py-12 text-center text-sm text-slate-500">
-          Yüklənir…
+          {t("common.loading")}
         </div>
       ) : (
       <div className="divide-y divide-slate-100">
-        {PASSWORD_CATEGORIES.map((cat) => {
+        {passwordCategories.map((cat) => {
           const isEnabled = enabled[cat.key] !== false;
           const hasCustom =
             hasCustomPinFor(cat.key) || !!passwords[cat.key];
@@ -324,16 +336,16 @@ const SecurityPasswordSettings = () => {
                     </span>
                     {hasCustom ? (
                       <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Özəl
+                        {t("pwd.custom")}
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
-                        Default
+                        {t("pwd.default")}
                       </span>
                     )}
                     {!isEnabled && (
                       <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
-                        Söndürülüb
+                        {t("pwd.disabled")}
                       </span>
                     )}
                   </div>
@@ -388,7 +400,7 @@ const SecurityPasswordSettings = () => {
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 text-xs sm:text-sm font-semibold transition"
                 >
                   <KeyRound size={14} />
-                  Şifrəni təyin et
+                  {t("pwd.setPassword")}
                 </button>
               </div>
             </div>
@@ -396,6 +408,53 @@ const SecurityPasswordSettings = () => {
         })}
       </div>
       )}
+
+      <div className="px-4 sm:px-5 py-4 border-t border-slate-100 bg-white">
+        <h4 className="text-sm font-bold text-slate-800 mb-1">{t("pwd.screenLockTitle")}</h4>
+        <p className="text-xs text-slate-500 mb-3">{t("pwd.screenLockDesc")}</p>
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+          <label className="flex-1 block text-sm">
+            <span className="text-slate-600 text-xs font-medium">{t("pwd.screenLockIdle")}</span>
+            <select
+              className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"
+              value={idleSeconds}
+              onChange={(e) => setIdleSeconds(Number(e.target.value))}
+            >
+              {SCREEN_LOCK_IDLE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {t(opt.labelKey)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={savingIdle || idleSeconds === getScreenLockIdleSeconds(settings)}
+            onClick={async () => {
+              setSavingIdle(true);
+              try {
+                await updateSettings({
+                  hidden_pages: settings.hidden_pages,
+                  hidden_features: settings.hidden_features,
+                  options: settings.options,
+                  screen_lock_idle_seconds: idleSeconds,
+                });
+                toast.success(t("pwd.screenLockSaved"), { position: "top-center" });
+              } catch (e) {
+                toast.error(e?.response?.data?.message || t("pwd.loadError"), {
+                  position: "top-center",
+                });
+              } finally {
+                setSavingIdle(false);
+              }
+            }}
+            className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {savingIdle ? t("pwd.keypadSaving") : t("common.save")}
+          </button>
+        </div>
+        <p className="text-[11px] text-slate-500 mt-2">{t("pwd.screenLockHint")}</p>
+      </div>
 
       <div className="px-4 sm:px-5 py-4 bg-slate-50 border-t border-slate-100 space-y-2">
         <p className="text-[11px] sm:text-xs text-slate-600 leading-relaxed">

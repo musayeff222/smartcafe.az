@@ -14,9 +14,9 @@ class QuickOrderRequest extends FormRequest
     public function rules()
     {
         return [
-            'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20',
-            'address' => 'required|string|max:500',
+            'name' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:500',
             'note' => 'nullable|string|max:1000',
             'courier_id' => 'nullable|exists:couriers,id',  // Ensure courier_id exists in couriers table
             'stocks' => 'nullable|array',

@@ -39,8 +39,9 @@ class DatabaseSeeder extends Seeder
     'password' => bcrypt('Musayeff@05++'),      // New password (hash it)
 ]);
 
-        // Assign the Super-Admin Role to the User
-/*        $user->assignRole($superAdminRole);
+        $user->assignRole($superAdminRole);
+
+/*
 
         // Create a Restaurant
         $restaurant = Restaurant::create([

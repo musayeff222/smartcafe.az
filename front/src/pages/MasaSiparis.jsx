@@ -7,7 +7,6 @@ import OncedenOde from "../components/OncedenOde";
 import AccessDenied from "../components/AccessDenied";
 import { base_url, img_url } from "../api/index";
 import { Helmet } from "react-helmet";
-import HesabKesAll from "../components/masasiparis/HesabKesAll";
 import TableRow from "../components/ui/TableRow";
 import Error from "../components/Error";
 import TotalPriceHesab from "../components/masasiparis/TotalPriceHesab";
@@ -58,7 +57,6 @@ function MasaSiparis() {
   const [odersIdMassa, setOrdersIdMassa] = useState({});
   const [refreshFetch, setRefreshFetch] = useState(false);
   const [oncedenodePopop, setOncedenodePopop] = useState(false);
-  const [HesabKes, setHesabKes] = useState(false);
   const navigate = useNavigate();
   const [accessDenied, setAccessDenied] = useState(false);
   const [role, setrole] = useState(localStorage.getItem("role"));
@@ -507,11 +505,15 @@ const handlePsTotalBlur = () => {
         setPsPrice([]); // Sifariş yoxdursa, psPrice-ni təmizlə
       }
 
-      setOrdersIdMassa({
-        id: response.data.table.orders[0].order_id,
-        total_price: response.data.table.orders[0].total_price,
-        total_prepayment: response.data.table.orders[0].total_prepayment,
-      });
+      if (orders.length > 0 && orders[0]?.order_id) {
+        setOrdersIdMassa({
+          id: orders[0].order_id,
+          total_price: orders[0].total_price ?? 0,
+          total_prepayment: orders[0].total_prepayment ?? 0,
+        });
+      } else {
+        setOrdersIdMassa({});
+      }
 
       // Stocks və Sets məlumatlarını birləşdir
       const formattedOrders = orders.map((order) => {
@@ -1294,6 +1296,18 @@ const handlePsTotalBlur = () => {
     const prepaid = totalPrice.total_prepare || 0;
     return overallTotal - prepaid;
   };
+
+  const openHesabKes = () => {
+    navigate(`/masa-siparis/${id}/hesab-kes`, {
+      state: {
+        tableName,
+        orderId: odersIdMassa,
+        totalAmount: calculateOverallTotal(),
+        prepaidAmount: totalPrice.total_prepare ?? 0,
+      },
+    });
+  };
+
   const normalizeItem = (item) => ({
     id: item.id || item.stock_id,
     name: item.name || item.stock_name,
@@ -1749,7 +1763,7 @@ const kicthenDataSend = () => {
             inputValue={inputValue}
             handlePsTotalChange={handlePsTotalChange}
             handlePsTotalBlur={handlePsTotalBlur}
-            setHesabKes={setHesabKes}
+            onOpenHesabKes={openHesabKes}
             handlePrint={handlePrint}
             handleDeleteMasa={handleDeleteMasa}
             TotalPriceHesab={TotalPriceHesab}
@@ -2283,18 +2297,6 @@ const kicthenDataSend = () => {
   </div>
 )}
 
-      {HesabKes && (
-        <HesabKesAll
-          setHesabKes={setHesabKes}
-          tableName={tableName}
-          orderId={odersIdMassa}
-          totalAmount={calculateOverallTotal()} // Ümumi məbləğ
-          foodAmount={totalPrice.total} // Yemək məbləği
-          psAmount={calculatePsTotal()} // PS məbləği
-          prepaidAmount={totalPrice.total_prepare} // Ön ödəniş
-          remainingAmount={calculateRemainingAmount()} // Qalıq
-        />
-      )}
     </>
   );
 }

@@ -1011,6 +1011,8 @@ class TableController extends Controller
 
         $stockGroups = $restaurant->stockGroups()
             ->where('show_on_qr_menu', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
             ->with(['stocks' => function ($query) {
                 $query->where('show_on_qr', true)->with('details'); // Eager load stock details
             }])->get();

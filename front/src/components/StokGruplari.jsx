@@ -25,6 +25,7 @@ function StokGruplari({ setShowPopup, editGroupid, seteditGroupid }) {
   const [yeniStok, setYeniStok] = useState(true);
   const [formData, setFormData] = useState({
     name: "",
+    sort_order: "",
     // image: null,
     show_on_qr_menu: true,
     kitchen_printer_active: false,
@@ -35,7 +36,8 @@ function StokGruplari({ setShowPopup, editGroupid, seteditGroupid }) {
   const [editingId, setEditingId] = useState(null);
   const [groups, setGroups] = useState([]);
   const [showOptions, setShowOptions] = useState(null);
-  const [accessDenied, setAccessDenied] = useState(false); 
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [reordering, setReordering] = useState(false);
   // Загрузка данных всех групп
   useEffect(() => {
     const fetchGroups = async () => {
@@ -82,6 +84,9 @@ function StokGruplari({ setShowPopup, editGroupid, seteditGroupid }) {
     formDataToSend.append('kitchen_printer_active', formData.kitchen_printer_active.toString());
     formDataToSend.append('bar_printer_active', formData.bar_printer_active.toString());
     formDataToSend.append('color', formData.color);
+    if (formData.sort_order !== "" && formData.sort_order !== null) {
+      formDataToSend.append('sort_order', String(formData.sort_order));
+    }
     return formDataToSend;
   };
 
@@ -96,6 +101,11 @@ function StokGruplari({ setShowPopup, editGroupid, seteditGroupid }) {
         kitchen_printer_active: formData.kitchen_printer_active,
         bar_printer_active: formData.bar_printer_active,
       };
+      if (formData.sort_order !== "" && formData.sort_order !== null) {
+        formDataToSend.sort_order = Number(formData.sort_order);
+      } else {
+        delete formDataToSend.sort_order;
+      }
       console.log(formData);
 
       try {
@@ -130,6 +140,7 @@ function StokGruplari({ setShowPopup, editGroupid, seteditGroupid }) {
       // Сброс формы и состояния после отправки
       setFormData({
         name: "",
+        sort_order: "",
         image: null,
         show_on_qr_menu: true,
         kitchen_printer_active: false,
@@ -165,6 +176,7 @@ function StokGruplari({ setShowPopup, editGroupid, seteditGroupid }) {
       setEditingId(id);
       setFormData({
         ...response.data,
+        sort_order: response.data.sort_order ?? "",
         image: null, // Замените это, если у вас есть способ предварительного просмотра изображения
       });
       setYeniStok(false);
@@ -206,6 +218,33 @@ function StokGruplari({ setShowPopup, editGroupid, seteditGroupid }) {
     }
     }
   };
+
+  const moveGroup = async (index, direction) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= groups.length || reordering) return;
+
+    const nextGroups = [...groups];
+    [nextGroups[index], nextGroups[targetIndex]] = [nextGroups[targetIndex], nextGroups[index]];
+
+    setReordering(true);
+    try {
+      const response = await axios.put(
+        `${base_url}/stock-groups/reorder`,
+        { order: nextGroups.map((group) => group.id) },
+        getPostPutHeaders()
+      );
+      setGroups(response.data);
+    } catch (error) {
+      if (error.response && error.response.status === 403 && error.response.data.message === "Forbidden") {
+        setAccessDenied(true);
+      } else {
+        console.error("Qrup sıralaması yenilənmədi", error);
+      }
+    } finally {
+      setReordering(false);
+    }
+  };
+
   if (accessDenied) return <AccessDenied onClose={setAccessDenied}/>;
   return (
     <div className="absolute w-full h-screen top-0 overflow-hidden p-7 bg-[#444444e6]">
@@ -262,6 +301,21 @@ function StokGruplari({ setShowPopup, editGroupid, seteditGroupid }) {
                   className="w-full border rounded py-2 px-3"
                   required
                 />
+              </div>
+              <div className="mb-3">
+                <label className="block text-gray-700">Sıra</label>
+                <input
+                  type="number"
+                  name="sort_order"
+                  min="1"
+                  value={formData.sort_order}
+                  onChange={handleChange}
+                  className="w-full border rounded py-2 px-3"
+                  placeholder="Məs: 1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Kiçik rəqəm yuxarıda göstərilir. Boş buraxsanız avtomatik sona əlavə olunur.
+                </p>
               </div>
               {/* <div className="mb-3">
                 <label className="block text-gray-700">Изображение</label>
@@ -329,14 +383,42 @@ function StokGruplari({ setShowPopup, editGroupid, seteditGroupid }) {
             <table className="w-full text-left border rounded bg-[#fafbfc] mb-3">
               <thead className="border-b border-gray-500 bg-[#e5e5e5]">
                 <tr>
+                  <th className="p-3 font-semibold w-28">Sıra</th>
                   <th className="p-3 font-semibold">Adi</th>
                   {/* <th className="p-3 font-semibold">Изображение</th> */}
                   <th className="p-3 font-semibold">Detal</th>
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {groups.map((group) => (
+                {groups.map((group, index) => (
                   <tr key={group.id} className="relative">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex min-w-[1.75rem] justify-center font-semibold text-gray-700">
+                          {group.sort_order ?? index + 1}
+                        </span>
+                        <div className="flex flex-col">
+                          <button
+                            type="button"
+                            disabled={index === 0 || reordering}
+                            onClick={() => moveGroup(index, -1)}
+                            className="px-1 text-gray-600 hover:text-blue-600 disabled:opacity-30"
+                            title="Yuxarı"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            disabled={index === groups.length - 1 || reordering}
+                            onClick={() => moveGroup(index, 1)}
+                            className="px-1 text-gray-600 hover:text-blue-600 disabled:opacity-30"
+                            title="Aşağı"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-3 py-2">{group.name}</td>
                
                     <td className="px-3 py-2">

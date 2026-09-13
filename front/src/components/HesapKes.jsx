@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import AccessDenied from "./AccessDenied";
 import { base_url } from "../api/index";
@@ -8,6 +8,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchTableOrderStocks } from "../redux/stocksSlice";
 import Modal from "../components/HesabKesModal";
 import AmountCalculator from "./AmountCalculator";
+import HesabKesStitchLayout from "./hesabKes/HesabKesStitchLayout";
 
 const getHeaders = () => ({
   headers: {
@@ -17,8 +18,45 @@ const getHeaders = () => ({
   },
 });
 
-function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHesabKes }) {
+/** orderId bəzən { id, total_price, total_prepayment } obyekti kimi gəlir (MasaSiparis / Modal). */
+function resolveOrderId(orderId, ordersList) {
+  const fallback = ordersList?.[0]?.order_id ?? null;
+  if (orderId == null || orderId === "") return fallback;
+  if (typeof orderId === "object") {
+    return orderId.id ?? orderId.order_id ?? fallback;
+  }
+  return orderId;
+}
+
+function resolvePrepaidAmount(prepaidAmount, orderId) {
+  if (prepaidAmount != null && prepaidAmount !== "") {
+    const n = Number(prepaidAmount);
+    if (!Number.isNaN(n)) return n;
+  }
+  if (orderId && typeof orderId === "object") {
+    return Number(orderId.total_prepayment) || 0;
+  }
+  return 0;
+}
+
+const fieldClass =
+  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm lg:text-base text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none";
+const labelClass =
+  "text-xs lg:text-sm font-semibold uppercase tracking-wide text-slate-500 mb-1 block";
+
+function HesapKes({
+  orderStocks,
+  orderId,
+  totalAmount,
+  prepaidAmount = 0,
+  setHesabKes,
+  onPaymentSuccess,
+  fullPage = false,
+  tableName = "",
+  onCancel,
+}) {
   const { id } = useParams();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
 
   const [isCariMusteriSelected, setIsCariMusteriSelected] = useState(false);
@@ -26,7 +64,7 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
   const [numberOfPeople, setNumberOfPeople] = useState(2);
   const [discount, setDiscount] = useState("");
   const [sum, setSum] = useState(Array(numberOfPeople).fill(0));
-  const [selectedPaymentType, setSelectedPaymentType] = useState("");
+  const [selectedPaymentType, setSelectedPaymentType] = useState(fullPage ? "pesin" : "");
   const [customerOptions, setCustomerOptions] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [showCashModal, setShowCashModal] = useState(false);
@@ -36,6 +74,9 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
 
   const { allItems, orders } = useSelector((state) => state.stocks);
 
+  const resolvedOrderId = resolveOrderId(orderId, orders);
+  const resolvedPrepaid = resolvePrepaidAmount(prepaidAmount, orderId);
+
   // ✅ Qəbz üçün print ref
   const printRef = useRef(null);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -44,7 +85,7 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
   const discountedTotalRaw = totalAmount * (1 - parseFloat(discount || 0) / 100);
   const discountedTotal = Math.max(
     0,
-    Number((discountedTotalRaw - Number(prepaidAmount || 0)).toFixed(2))
+    Number((discountedTotalRaw - Number(resolvedPrepaid || 0)).toFixed(2))
   );
 
   // 🟡 Qalıq məbləğ (nağd modal üçün)
@@ -70,6 +111,22 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
     }
   }, [discount, numberOfPeople, isParcaParcaOde]); // eslint-disable-line
 
+  useEffect(() => {
+    if (!fullPage) return;
+    const onKeyDown = (e) => {
+      const tag = e.target?.tagName;
+      const inField = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+      if (e.key === "Escape" && typeof onCancel === "function") {
+        onCancel();
+      } else if (e.key === "Enter" && !inField && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById("hesab-kes-form")?.requestSubmit();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [fullPage, onCancel]);
+
   // ✅ Ödəniş tipi seçimi
   const handlePaymentTypeChange = (type) => {
     setSelectedPaymentType(type);
@@ -83,8 +140,11 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
       setNumberOfPeople(0);
       setSum([]);
     }
-    if (type === "pesin") {
-      setShowCashModal(true); // nağd seçiləndə modal aç
+    if (type === "pesin" && !fullPage) {
+      setShowCashModal(true);
+    }
+    if (type !== "pesin") {
+      setAlinanMebleg("");
     }
   };
 
@@ -122,7 +182,7 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
   const handlePrint = async () => {
     try {
       setIsPrinting(true);
-      const finalAmount = Number(totalAmount || 0) - Number(prepaidAmount || 0);
+      const finalAmount = Number(totalAmount || 0) - Number(resolvedPrepaid || 0);
       if (isNaN(finalAmount)) {
         alert("Ödəniş məlumatları düzgün deyil!");
         return;
@@ -169,6 +229,11 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
   const handleSubmit = async (event, forceSubmit = false) => {
     if (event?.preventDefault) event.preventDefault();
 
+    if (!selectedPaymentType) {
+      toast.warn("Zəhmət olmasa ödəniş növü seçin.", { position: "top-center" });
+      return;
+    }
+
     if (discountedTotal <= 0) {
       toast.warn("İndirimli məbləğ sıfır və ya mənfi ola bilməz!", { position: "top-center" });
       return;
@@ -196,7 +261,7 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
       remaining_amount: qaliqMebleg !== null ? parseFloat(qaliqMebleg.toFixed(2)) : 0,
       total_amount: parseFloat(Number(totalAmount || 0).toFixed(2)),
       discounted_total: parseFloat(Number(discountedTotal || 0).toFixed(2)),
-      prepaid_amount: parseFloat(Number(prepaidAmount || 0).toFixed(2)), // ✅ ön ödəniş
+      prepaid_amount: parseFloat(Number(resolvedPrepaid || 0).toFixed(2)), // ✅ ön ödəniş
       shares: [],
     };
 
@@ -227,11 +292,18 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
       return;
     }
 
+    if (!resolvedOrderId) {
+      toast.error("Sifariş tapılmadı — səhifəni yeniləyin.", {
+        position: "top-center",
+      });
+      return;
+    }
+
     if (isSubmitting) return; // ikiqat submit qorumasi
     setIsSubmitting(true);
     try {
       await axios.post(
-        `${base_url}/order/${orders?.[0]?.order_id || orderId}/payments`,
+        `${base_url}/order/${resolvedOrderId}/payments`,
         paymentData,
         getHeaders()
       );
@@ -249,13 +321,13 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
         localStorage.removeItem(`masa_siparis_${id}_openPsSettings`);
       } catch (_) {}
 
-      // Modal bağlansın ki, ağ ekran yaranmasın
       if (typeof setHesabKes === "function") setHesabKes(false);
 
-      // Tək, etibarlı redirect — navigate + reload kombinasiyası əvəzinə
-      setTimeout(() => {
-        window.location.href = "/masalar";
-      }, 600);
+      if (typeof onPaymentSuccess === "function") {
+        onPaymentSuccess();
+      } else {
+        navigate("/masalar", { replace: true });
+      }
     } catch (error) {
       setIsSubmitting(false);
       if (error?.response?.status === 403 && error?.response?.data?.message === "Forbidden") {
@@ -269,116 +341,224 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
     }
   };
 
-  if (accessDenied) return <AccessDenied onClose={setAccessDenied} />;
+  if (accessDenied) {
+    return (
+      <AccessDenied
+        onClose={() => {
+          setAccessDenied(false);
+          if (fullPage && typeof onCancel === "function") onCancel();
+          else if (typeof setHesabKes === "function") setHesabKes(false);
+        }}
+      />
+    );
+  }
 
-  return (
+  const quickAmountButtons = (
+    <>
+      <button
+        type="button"
+        className={`rounded-xl bg-emerald-600 text-white py-2.5 px-2 text-xs lg:text-sm font-bold shadow-md hover:bg-emerald-700 active:bg-emerald-800 touch-manipulation whitespace-nowrap ${fullPage ? "col-span-2" : ""}`}
+        onClick={() => setAlinanMebleg(String(discountedTotal))}
+      >
+        {fullPage ? "Dəqiq" : "Dəqiq məbləğ"}
+      </button>
+      {[50, 100, 200].map((amt) => (
+        <button
+          key={amt}
+          type="button"
+          className="rounded-xl border-2 border-emerald-200 bg-white py-2.5 text-sm lg:text-base font-bold text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 touch-manipulation"
+          onClick={() => setAlinanMebleg(String(amt))}
+        >
+          {fullPage ? amt : `${amt} ₼`}
+        </button>
+      ))}
+    </>
+  );
+
+  const changeDisplay =
+    qaliqMebleg !== null ? (
+      <div
+        className={`rounded-2xl px-4 py-4 text-center w-full h-full min-h-[5.5rem] flex flex-col justify-center ${
+          qaliqMebleg < 0 ? "bg-red-600 text-white shadow-md" : "bg-emerald-600 text-white shadow-md"
+        }`}
+      >
+        <p className="text-xs font-bold uppercase tracking-widest">
+          {qaliqMebleg < 0 ? "Çatışmayan məbləğ" : "Para üstü"}
+        </p>
+        <p className="font-mono text-3xl sm:text-4xl font-bold tabular-nums mt-1 tracking-tight">
+          {Math.abs(qaliqMebleg).toFixed(2)} ₼
+        </p>
+      </div>
+    ) : null;
+
+  const cashSection =
+    selectedPaymentType === "pesin" ? (
+      fullPage ? (
+        <div className="w-full flex flex-col gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
+            <div className="rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-4 text-center shadow-md">
+              <p className="text-xs font-bold uppercase tracking-widest text-emerald-100">Ödəniləcək</p>
+              <p className="font-mono text-3xl sm:text-4xl font-bold tabular-nums mt-1">
+                {Number(discountedTotal || 0).toFixed(2)} ₼
+              </p>
+            </div>
+            <div className="rounded-2xl border-2 border-emerald-200 bg-white p-3 shadow-sm">
+              <p className="text-xs font-bold uppercase text-emerald-800 text-center mb-2">Tez seçim</p>
+              <div className="grid grid-cols-2 gap-2">{quickAmountButtons}</div>
+            </div>
+            <div className="min-h-[5.5rem] flex items-stretch">
+              {changeDisplay ? (
+                <div className="w-full">{changeDisplay}</div>
+              ) : (
+                <div className="w-full rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400 text-sm text-center p-4">
+                  Məbləğ daxil edin — para üstü burada görünəcək
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="rounded-2xl border-2 border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+            <AmountCalculator value={alinanMebleg} onChange={setAlinanMebleg} fullWidth />
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-emerald-200/80 bg-white shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-4 text-center text-white">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-100/90">
+              Ödəniləcək məbləğ
+            </p>
+            <p className="font-mono text-4xl font-bold tabular-nums mt-1 tracking-tight">
+              {Number(discountedTotal || 0).toFixed(2)}
+              <span className="text-2xl font-semibold ml-1 opacity-90">₼</span>
+            </p>
+          </div>
+          <div className="p-4 space-y-4 bg-gradient-to-b from-emerald-50/50 to-white">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{quickAmountButtons}</div>
+            <AmountCalculator value={alinanMebleg} onChange={setAlinanMebleg} fullWidth />
+            {changeDisplay}
+          </div>
+        </div>
+      )
+    ) : null;
+
+  const paymentTypeOptions = [
+    { type: "pesin", short: "Nağd", long: "Nağd" },
+    { type: "bank-havale", short: "Kart", long: "Bank kartı" },
+    { type: "musteriye-aktar", short: "Cari", long: "Müştəri hesabı" },
+    { type: "parca-ode", short: "Hissə", long: "Hissə-hissə" },
+  ];
+
+  const paymentTypeBlock = (
+    <div>
+      <p className={labelClass}>Ödəniş növü</p>
+      <div
+        className={
+          fullPage
+            ? "grid grid-cols-2 sm:grid-cols-4 gap-2"
+            : "grid grid-cols-2 gap-2"
+        }
+      >
+        {paymentTypeOptions.map(({ type, short, long }) => (
+          <label
+            key={type}
+            className={`flex items-center justify-center rounded-xl border cursor-pointer transition touch-manipulation hover:border-indigo-300 ${
+              fullPage
+                ? "px-2 py-2.5 text-xs sm:text-sm font-semibold lg:px-3 lg:py-3 lg:text-sm"
+                : "px-3 py-3 text-sm font-medium"
+            } ${
+              selectedPaymentType === type
+                ? "border-indigo-500 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-200"
+                : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            <input
+              type="radio"
+              name="odemeType"
+              checked={selectedPaymentType === type}
+              onChange={() => handlePaymentTypeChange(type)}
+              className="sr-only"
+            />
+            {fullPage ? (
+              <>
+                <span className="lg:hidden">{short}</span>
+                <span className="hidden lg:inline">{long}</span>
+              </>
+            ) : (
+              long
+            )}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+
+  const summaryBlock = (
+    <div className={`grid gap-2 ${fullPage ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2 gap-3"}`}>
+      <div>
+        <label className={labelClass}>Toplam</label>
+        <input className={fieldClass} type="text" value={`${Number(totalAmount || 0).toFixed(2)} ₼`} readOnly />
+      </div>
+      <div>
+        <label className={labelClass}>Ön ödəniş</label>
+        <input
+          className={`${fieldClass} bg-emerald-50 border-emerald-200`}
+          type="text"
+          value={`${Number(resolvedPrepaid || 0).toFixed(2)} ₼`}
+          readOnly
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Endirim %</label>
+        <input
+          className={fieldClass}
+          type="number"
+          min="0"
+          max="100"
+          step="1"
+          value={discount}
+          onChange={(e) =>
+            setDiscount(e.target.value === "" ? "" : Math.min(100, Math.max(0, Number(e.target.value))))
+          }
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Ödəniləcək</label>
+        <input
+          className={`${fieldClass} bg-indigo-50 border-indigo-200 font-semibold text-indigo-700`}
+          type="text"
+          value={`${Number(discountedTotal || 0).toFixed(2)} ₼`}
+          readOnly
+        />
+      </div>
+    </div>
+  );
+
+  const formContent = (
     <>
       {/* ✅ PRINT SAHƏSİ – yalnız qəbz üçün (istəyə görə zənginləşdir) */}
       <div ref={printRef} style={{ position: "absolute", left: -99999, top: -99999 }}>
         <div className="title">Qəbz</div>
-        <div className="row"><span className="muted">Sifariş:</span><span>{orders?.[0]?.order_id || orderId}</span></div>
+        <div className="row"><span className="muted">Sifariş:</span><span>{resolvedOrderId ?? "—"}</span></div>
         <div className="row"><span className="muted">Cəmi:</span><span>{Number(totalAmount || 0).toFixed(2)} ₼</span></div>
         <div className="row"><span className="muted">Endirim:</span><span>{Number(discount || 0)} %</span></div>
-        <div className="row"><span className="muted">Ön ödəniş:</span><span>{Number(prepaidAmount || 0).toFixed(2)} ₼</span></div>
+        <div className="row"><span className="muted">Ön ödəniş:</span><span>{Number(resolvedPrepaid || 0).toFixed(2)} ₼</span></div>
         <div className="row"><span className="muted">Ödəniləcək:</span><span>{Number(discountedTotal || 0).toFixed(2)} ₼</span></div>
         <div className="hr"></div>
         <div className="muted">{new Date().toLocaleString()}</div>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        {/* Toplam məbləğ */}
-        <div className="border rounded bg-gray-50 m-4 p-3">
-          <div className="flex items-center">
-            <div className="w-1/3 flex h-14 border rounded-l items-center px-2 bg-gray-100 gap-5">
-              Toplam Məbləğ
-            </div>
-            <input
-              className="w-2/3 h-14 px-6 border border-l-0 rounded-r"
-              type="text"
-              value={Number(totalAmount || 0).toFixed(2)}
-              readOnly
-            />
-          </div>
-        </div>
+      <form id="hesab-kes-form" onSubmit={handleSubmit} className="space-y-4">
+        {summaryBlock}
+        {paymentTypeBlock}
 
-        {/* Artıq ödənilib */}
-        <div className="border rounded bg-green-50 m-4 p-3">
-          <div className="flex items-center">
-            <div className="w-1/3 flex h-14 border rounded-l items-center px-2 bg-gray-100 gap-5">
-              Artıq ödənilib (Ön ödəniş)
-            </div>
-            <input
-              className="w-2/3 h-14 px-6 border border-l-0 rounded-r"
-              type="text"
-              value={Number(prepaidAmount || orderId?.total_prepayment || 0).toFixed(2)}
-              readOnly
-            />
-          </div>
-        </div>
-
-        {/* İndirim və Qalıq (vizual sahə) */}
-        <div className="border rounded bg-gray-50 m-4 p-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex-1 min-w-[220px] flex h-14 border rounded items-center px-2 bg-gray-100">
-              İndirim (%)
-            </div>
-            <input
-              className="flex-1 min-w-[220px] h-14 px-6 border rounded"
-              type="number"
-              min="0"
-              max="100"
-              step="1"
-              value={discount}
-              onChange={(e) => setDiscount(e.target.value === "" ? "" : Math.min(100, Math.max(0, Number(e.target.value))))}
-            />
-
-            <div className="flex-1 min-w-[220px] flex h-14 border rounded items-center px-2 bg-gray-100">
-              Ödəniləcək (Endirim + Ön ödəniş düş.)
-            </div>
-            <input
-              className="flex-1 min-w-[220px] h-14 px-6 border rounded"
-              type="text"
-              value={Number(discountedTotal || 0).toFixed(2)}
-              readOnly
-            />
-          </div>
-        </div>
-
-        {/* Ödəniş tipi */}
-        <div className="mx-4 flex flex-col gap-2">
-          {["pesin", "bank-havale", "musteriye-aktar", "parca-ode"].map((type) => (
-            <label
-              key={type}
-              className={`flex items-center p-2 border rounded bg-white shadow-sm ${
-                selectedPaymentType === type ? "bg-yellow-100 border-yellow-500" : ""
-              }`}
-            >
-              <input
-                type="radio"
-                name="odemeType"
-                id={type}
-                checked={selectedPaymentType === type}
-                onChange={() => handlePaymentTypeChange(type)}
-                className="mr-2"
-              />
-              {type === "pesin" && "Nağd"}
-              {type === "bank-havale" && "Bank Kartına"}
-              {type === "musteriye-aktar" && "Müştəri hesabına"}
-              {type === "parca-ode" && "Hissə-hissə ödə"}
-            </label>
-          ))}
-        </div>
-
-        {/* Cari müştəri seçimi */}
         {isCariMusteriSelected && (
-          <div id="aktar" className="p-4 bg-white shadow-md rounded-lg mt-4">
-            <p className="text-lg font-semibold mb-2">Müştərilər</p>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <label className={labelClass}>Müştəri</label>
             <select
-              className="form-select block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              className={fieldClass}
               onChange={(e) => setSelectedCustomerId(e.target.value)}
               value={selectedCustomerId || ""}
             >
-              <option value="">Seçiniz</option>
+              <option value="">Seçin</option>
               {customerOptions.map((customer) => (
                 <option key={customer.id} value={customer.id}>
                   {customer.name}
@@ -388,79 +568,79 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
           </div>
         )}
 
-        {/* Hissə-hissə ödəniş */}
+        {cashSection}
+
         {isParcaParcaOde && (
-          <div id="parcaode" className="p-4 bg-white shadow-md rounded-lg mt-4">
-            <div className="flex flex-wrap gap-2 mb-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
+            <div className="flex flex-wrap gap-2">
               {[2, 3, 4, 5].map((num) => (
-                <div
+                <button
                   key={num}
+                  type="button"
                   onClick={() => handleNumberOfPeopleChange(num)}
-                  className={`flex-1 min-w-[100px] p-4 border border-gray-300 rounded-lg bg-gray-50 text-center cursor-pointer ${
-                    numberOfPeople === num ? "bg-yellow-100" : ""
+                  className={`flex-1 min-w-[4.5rem] py-2 rounded-lg border text-sm font-medium transition ${
+                    numberOfPeople === num
+                      ? "border-indigo-500 bg-indigo-100 text-indigo-800"
+                      : "border-slate-200 bg-white text-slate-700"
                   }`}
                 >
-                  {num} kişi
+                  {num} nəfər
+                </button>
+              ))}
+            </div>
+            <div className="space-y-2">
+              {sum.map((_, index) => (
+                <div key={index} className="grid grid-cols-[2rem_1fr] gap-2 items-center">
+                  <span className="text-sm font-semibold text-slate-500 text-center">{index + 1}.</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={sum[index]}
+                    onChange={(e) => handleSumChange(index, e.target.value)}
+                    className={fieldClass}
+                  />
                 </div>
               ))}
             </div>
-
-            <div className="mb-4">
-              <div className="grid grid-cols-3 gap-4 text-center font-semibold border-b border-gray-300 pb-2 mb-2">
-                <div>No</div>
-                <div>Məbləğ</div>
-                <div>Ödəniş</div>
-              </div>
-              <div>
-                {sum.map((_, index) => (
-                  <div key={index} className="grid grid-cols-3 gap-4 items-center border-b border-gray-200 py-2">
-                    <div className="flex items-center justify-center border border-gray-300 p-2 rounded">
-                      {index + 1}.
-                    </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={sum[index]}
-                      onChange={(e) => handleSumChange(index, e.target.value)}
-                      className="border border-gray-300 rounded p-2 w-full"
-                    />
-                    <select className="border border-gray-300 rounded p-2 w-full">
-                      <option>Peşin</option>
-                      <option>Banka havalesi</option>
-                    </select>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {sumMessage && (
-              <div className={`p-2 mt-4 text-white font-semibold ${totalSum > discountedTotal ? "bg-red-600" : "bg-yellow-600"}`}>
+              <p
+                className={`text-sm font-medium rounded-lg px-3 py-2 ${
+                  totalSum > discountedTotal ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900"
+                }`}
+              >
                 {sumMessage}
-              </div>
+              </p>
             )}
           </div>
         )}
 
-        {/* Hesab kəs (submit) */}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="block w-[calc(100%-32px)] bg-sky-600 font-medium mx-4 mb-3 py-2 px-4 rounded text-white hover:bg-sky-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {isSubmitting ? "İcra olunur..." : "Hesab kəs"}
-        </button>
-
-        {/* Qəbz Çap Et */}
-        <button
-          type="button"
-          onClick={handlePrint}
-          disabled={isPrinting}
-          className="block w-[calc(100%-32px)] bg-green-600 font-medium mx-4 mb-6 py-2 px-4 rounded text-white hover:bg-green-700 transition disabled:opacity-50"
-        >
-          {isPrinting ? "Çap olunur..." : "Qəbz Çap Et"}
-        </button>
+        {!fullPage && (
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 rounded-xl bg-indigo-600 py-3 px-4 text-sm font-semibold text-white hover:bg-indigo-700 transition disabled:opacity-60"
+            >
+              {isSubmitting ? "İcra olunur..." : "Hesab kəs"}
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={isPrinting}
+              className="sm:w-auto rounded-xl border border-slate-200 bg-white py-3 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+            >
+              {isPrinting ? "Çap..." : "Qəbz çap"}
+            </button>
+          </div>
+        )}
       </form>
+    </>
+  );
 
+  if (!fullPage) {
+    return (
+      <>
+        {formContent}
       {/* Nağd modal */}
       <Modal isOpen={showCashModal} onClose={() => setShowCashModal(false)}>
         <h2 className="text-lg font-bold mb-4">Nağd ödəniş</h2>
@@ -519,6 +699,66 @@ function HesapKes({ orderStocks, orderId, totalAmount, prepaidAmount = 0, setHes
           </button>
         </div>
       </Modal>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div ref={printRef} style={{ position: "absolute", left: -99999, top: -99999 }}>
+        <div className="title">Qəbz</div>
+        <div className="row">
+          <span className="muted">Sifariş:</span>
+          <span>{resolvedOrderId ?? "—"}</span>
+        </div>
+        <div className="row">
+          <span className="muted">Cəmi:</span>
+          <span>{Number(totalAmount || 0).toFixed(2)} ₼</span>
+        </div>
+        <div className="row">
+          <span className="muted">Endirim:</span>
+          <span>{Number(discount || 0)} %</span>
+        </div>
+        <div className="row">
+          <span className="muted">Ön ödəniş:</span>
+          <span>{Number(resolvedPrepaid || 0).toFixed(2)} ₼</span>
+        </div>
+        <div className="row">
+          <span className="muted">Ödəniləcək:</span>
+          <span>{Number(discountedTotal || 0).toFixed(2)} ₼</span>
+        </div>
+        <div className="hr" />
+        <div className="muted">{new Date().toLocaleString()}</div>
+      </div>
+      <HesabKesStitchLayout
+        tableName={tableName}
+        onCancel={onCancel}
+        onSubmit={handleSubmit}
+        totalAmount={totalAmount}
+        resolvedPrepaid={resolvedPrepaid}
+        discount={discount}
+        setDiscount={setDiscount}
+        discountedTotal={discountedTotal}
+        selectedPaymentType={selectedPaymentType}
+        onPaymentTypeChange={handlePaymentTypeChange}
+        isCariMusteriSelected={isCariMusteriSelected}
+        customerOptions={customerOptions}
+        selectedCustomerId={selectedCustomerId}
+        setSelectedCustomerId={setSelectedCustomerId}
+        isParcaParcaOde={isParcaParcaOde}
+        numberOfPeople={numberOfPeople}
+        onNumberOfPeopleChange={handleNumberOfPeopleChange}
+        sum={sum}
+        onSumChange={handleSumChange}
+        sumMessage={sumMessage}
+        alinanMebleg={alinanMebleg}
+        setAlinanMebleg={setAlinanMebleg}
+        qaliqMebleg={qaliqMebleg}
+        isSubmitting={isSubmitting}
+        isPrinting={isPrinting}
+        onSubmitForce={() => handleSubmit(null, true)}
+        onPrint={handlePrint}
+      />
     </>
   );
 }

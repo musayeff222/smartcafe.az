@@ -30,7 +30,12 @@ class Restaurant extends Model
         'active_until', 
         'open_time',
         'is_psclub',
-        'close_time'
+        'close_time',
+        'ui_settings',
+    ];
+
+    protected $casts = [
+        'ui_settings' => 'array',
     ];
 
     public function users()
@@ -91,6 +96,11 @@ class Restaurant extends Model
     public function securitySettings()
     {
         return $this->hasMany(RestaurantSecuritySetting::class);
+    }
+
+    public function webSetting()
+    {
+        return $this->hasOne(RestaurantWebSetting::class);
     }
 
 }

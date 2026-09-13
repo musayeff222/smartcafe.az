@@ -14,7 +14,7 @@ const getHeaders = () => ({
     'Accept': 'application/json',
   }
 });
-function HesapKes({ orderId, totalAmount, orderStocks, quickOrderId }) {
+function HesapKes({ orderId, totalAmount, orderStocks, quickOrderId, onPaymentSuccess }) {
   console.log("totalAmount", totalAmount);
   console.log("orderStocks", orderStocks);
   console.log("orderId", orderId);
@@ -214,7 +214,7 @@ function HesapKes({ orderId, totalAmount, orderStocks, quickOrderId }) {
     }
   }
 
-  const order_id = orderID || orders[0]?.order_id;
+  const order_id = orderID || orders[0]?.order_id || orderId?.id;
 
   if (!order_id) {
     alert('Order ID bulunamadı.');
@@ -223,6 +223,10 @@ function HesapKes({ orderId, totalAmount, orderStocks, quickOrderId }) {
 
   try {
     await axios.post(`${base_url}/order/${order_id}/payments`, paymentData, getHeaders());
+    if (onPaymentSuccess) {
+      onPaymentSuccess();
+      return;
+    }
     alert('Ödəniş uğurla icra olundu.');
     navigate('/masalar');
     window.location.reload();

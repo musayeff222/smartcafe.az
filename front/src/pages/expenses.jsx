@@ -1,174 +1,112 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from "react";
 import { pageTitle } from "../config/branding";
-import axios from 'axios';
-import AccessDenied from '../components/AccessDenied';
-import { base_url } from '../api/index';
-import { Helmet } from 'react-helmet';
+import { Helmet } from "react-helmet";
+import { Banknote, List, BarChart3, Tags, CalendarRange } from "lucide-react";
+import { expensesApi } from "../api/expensesApi";
+import ExpenseListTab from "../components/expenses/ExpenseListTab";
+import ExpenseGroupedTab from "../components/expenses/ExpenseGroupedTab";
+import ExpenseStatsTab from "../components/expenses/ExpenseStatsTab";
+import ExpenseCategoriesTab from "../components/expenses/ExpenseCategoriesTab";
 
-const getHeaders = () => ({
-  headers: {
-    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  }
-});
+const Box = "div";
 
-function Expenses() {
-  const [categories, setCategories] = useState([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [expenseAmount, setExpenseAmount] = useState('');
-  const [expenseReason, setExpenseReason] = useState('');
-  const [categoryExpenses, setCategoryExpenses] = useState(null);
-  const [loading, setLoading] = useState(true);
+const TABS = [
+  { id: "list", label: "Siyahı", icon: List },
+  { id: "grouped", label: "Günlük / Aylıq", icon: CalendarRange },
+  { id: "stats", label: "Statistika", icon: BarChart3 },
+  { id: "categories", label: "Kateqoriyalar", icon: Tags },
+];
 
-  // ✅ Xərc kateqoriyalarını gətir
-  const fetchCategories = async () => {
-    try {
-      const res = await axios.get(`${base_url}/expense-categories`, getHeaders());
-      setCategories(res.data);
-    } catch (err) {
-      console.error("Error fetching categories", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ✅ Yeni xərc kateqoriyası əlavə et
-  const createCategory = async () => {
-    try {
-      await axios.post(`${base_url}/expense-categories`, { name: newCategoryName }, getHeaders());
-      setNewCategoryName('');
-      fetchCategories();
-    } catch (err) {
-      console.error("Error creating category", err);
-    }
-  };
-
-  // ✅ Seçilmiş kateqoriyanın xərclərini gətir
-  const fetchCategoryExpenses = async (categoryId) => {
-    try {
-      const res = await axios.get(`${base_url}/expense-categories/${categoryId}/expenses`, getHeaders());
-      setCategoryExpenses(res.data);
-    } catch (err) {
-      console.error("Error fetching category expenses", err);
-    }
-  };
-
-  // ✅ Seçilmiş kateqoriyaya xərc əlavə et
-  const addExpense = async () => {
-    try {
-      await axios.post(`${base_url}/expense-categories/${selectedCategoryId}/expenses`, {
-        amount: Number(expenseAmount),
-        reason: expenseReason
-      }, getHeaders());
-
-      setExpenseAmount('');
-      setExpenseReason('');
-      fetchCategoryExpenses(selectedCategoryId);
-      fetchCategories(); // total_expense yenilənsin deyə
-    } catch (err) {
-      console.error("Error adding expense", err);
-    }
-  };
-
-  // ✅ Kateqoriya sil
-  const deleteCategory = async (categoryId) => {
-    try {
-      await axios.delete(`${base_url}/expense-categories/${categoryId}`, getHeaders());
-      if (selectedCategoryId === categoryId) {
-        setSelectedCategoryId(null);
-        setCategoryExpenses(null);
-      }
-      fetchCategories();
-    } catch (err) {
-      console.error("Error deleting category", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchCategories();
+function useExpensePermissions() {
+  return useMemo(() => {
+    const role = localStorage.getItem("role") || "";
+    const isAdmin = role === "admin" || role === "super-admin";
+    return {
+      view: isAdmin,
+      create: isAdmin,
+      update: isAdmin,
+      delete: isAdmin,
+      export: isAdmin,
+      manageCategories: isAdmin,
+    };
   }, []);
+}
+
+export default function Expenses() {
+  const [tab, setTab] = useState("list");
+  const [categories, setCategories] = useState([]);
+  const permissions = useExpensePermissions();
+
+  const loadCategories = async () => {
+    try {
+      const res = await expensesApi.listCategories();
+      setCategories(res.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
-    if (selectedCategoryId) {
-      fetchCategoryExpenses(selectedCategoryId);
-    }
-  }, [selectedCategoryId]);
+    if (permissions.view) loadCategories();
+  }, [permissions.view]);
+
+  if (!permissions.view) {
+    return (
+      <section className="p-8 text-center text-slate-600">
+        Xərclər bölməsinə baxış icazəniz yoxdur.
+      </section>
+    );
+  }
 
   return (
-    <section className="p-4">
+    <section className="w-full p-3 sm:p-4">
       <Helmet>
-        <title>{pageTitle('Xərc Kateqoriyaları')}</title>
-        <meta name="description" content="Xərc idarəetmə paneli" />
+        <title>{pageTitle("Xərclər")}</title>
       </Helmet>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* ✅ Sol: Kateqoriya Siyahısı */}
-        <div className="border p-4 rounded shadow">
-          <h2 className="font-semibold text-lg mb-2">Kateqoriyalar</h2>
+      <Box className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <Box className="px-4 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center gap-3">
+          <Box className="w-10 h-10 rounded-xl bg-white/20 grid place-items-center">
+            <Banknote size={22} />
+          </Box>
+          <Box>
+            <h1 className="text-lg font-bold">Xərclər</h1>
+            <p className="text-xs text-indigo-100">Qeyd, hesabat və kateqoriya idarəetməsi</p>
+          </Box>
+        </Box>
 
-          {loading ? (
-            <p>Yüklənir...</p>
-          ) : (
-            categories.map((category) => (
-              <div key={category.id} className="flex justify-between items-center border-b py-2">
-                <button
-                  onClick={() => setSelectedCategoryId(category.id)}
-                  className={`text-left ${selectedCategoryId === category.id ? 'font-bold text-blue-600' : ''}`}
-                >
-                  {category.name} - {category.total_expense} ₼
-                </button>
-                <button onClick={() => deleteCategory(category.id)} className="text-red-500">Sil</button>
-              </div>
-            ))
+        <Box className="flex gap-1 p-2 border-b border-slate-100 overflow-x-auto">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap transition ${
+                tab === id ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-100"
+              }`}>
+              <Icon size={16} />
+              {label}
+            </button>
+          ))}
+        </Box>
+
+        <Box className="p-4">
+          {tab === "list" && (
+            <ExpenseListTab categories={categories} permissions={permissions} />
           )}
-
-          <div className="mt-4 flex gap-2">
-            <input
-              type="text"
-              placeholder="Yeni kateqoriya adı"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              className="border p-2 rounded w-full"
+          {tab === "grouped" && <ExpenseGroupedTab />}
+          {tab === "stats" && (
+            <ExpenseStatsTab permissions={permissions} />
+          )}
+          {tab === "categories" && (
+            <ExpenseCategoriesTab
+              categories={categories}
+              onRefresh={loadCategories}
+              permissions={permissions}
             />
-            <button onClick={createCategory} className="bg-blue-500 text-white px-4 py-2 rounded">Əlavə et</button>
-          </div>
-        </div>
-
-        {/* ✅ Sağ: Seçilmiş Kateqoriyanın Detalları */}
-        <div className="border p-4 rounded shadow">
-          {selectedCategoryId && categoryExpenses ? (
-            <>
-              <h2 className="font-semibold text-lg mb-2">
-                {categoryExpenses.category} - Toplam: {categoryExpenses.total_expense} ₼
-              </h2>
-
-              <div className="mt-2">
-                <input
-                  type="number"
-                  placeholder="Məbləğ"
-                  value={expenseAmount}
-                  onChange={(e) => setExpenseAmount(e.target.value)}
-                  className="border p-2 rounded w-full mb-2"
-                />
-                <input
-                  type="text"
-                  placeholder="Səbəb"
-                  value={expenseReason}
-                  onChange={(e) => setExpenseReason(e.target.value)}
-                  className="border p-2 rounded w-full mb-2"
-                />
-                <button onClick={addExpense} className="bg-green-600 text-white px-4 py-2 rounded">Xərc əlavə et</button>
-              </div>
-            </>
-          ) : (
-            <p>Kateqoriya seçilməyib.</p>
           )}
-        </div>
-      </div>
+        </Box>
+      </Box>
     </section>
   );
 }
-
-export default Expenses;

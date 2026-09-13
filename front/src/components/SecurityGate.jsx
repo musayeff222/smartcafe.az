@@ -12,9 +12,11 @@ import {
   XCircle,
   Warehouse,
   Wallet,
+  Monitor,
 } from "lucide-react";
+import { useLanguage } from "../i18n/LanguageContext";
 import {
-  PASSWORD_CATEGORIES,
+  getPasswordCategories,
   prefetchSecuritySettings,
   verifyPassword,
   isCategoryEnabled,
@@ -26,6 +28,7 @@ const CATEGORY_ICONS = {
   legv: XCircle,
   anbar: Warehouse,
   kassa: Wallet,
+  ekran: Monitor,
 };
 
 const SecurityGate = ({
@@ -35,6 +38,7 @@ const SecurityGate = ({
   title,
   autoDismiss = true,
 }) => {
+  const { t } = useLanguage();
   const [settingsReady, setSettingsReady] = useState(false);
   const [value, setValue] = useState("");
   const [show, setShow] = useState(false);
@@ -44,9 +48,9 @@ const SecurityGate = ({
   const inputRef = useRef(null);
 
   const cat =
-    PASSWORD_CATEGORIES.find((c) => c.key === category) || {
+    getPasswordCategories(t).find((c) => c.key === category) || {
       key: category,
-      label: title || "Şifrə",
+      label: title || t("login.password"),
       description: "",
     };
   const Icon = CATEGORY_ICONS[category] || Lock;

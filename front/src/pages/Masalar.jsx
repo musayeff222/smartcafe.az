@@ -22,6 +22,7 @@ import {
   CircleDot,
   RefreshCw,
 } from "lucide-react";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const getHeaders = () => ({
   headers: {
@@ -77,6 +78,7 @@ const getContrastPalette = (hex) => {
 };
 
 const Masalar = () => {
+  const { t } = useLanguage();
   const [masaType, setMasaType] = useState(
     Number(localStorage.getItem("masaType")) || 0
   );
@@ -265,25 +267,25 @@ const Masalar = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
             <StatCard
               icon={<LayoutGrid size={18} />}
-              label="Ümumi masa"
+              label={t("masalar.totalTables")}
               value={stats.total}
               color="from-indigo-500 to-blue-600"
             />
             <StatCard
               icon={<CheckCircle2 size={18} />}
-              label="Boş"
+              label={t("masalar.empty")}
               value={stats.free}
               color="from-emerald-500 to-green-600"
             />
             <StatCard
               icon={<CircleDot size={18} />}
-              label="Dolu"
+              label={t("masalar.occupied")}
               value={stats.occupied}
               color="from-rose-500 to-red-600"
             />
             <StatCard
               icon={<Utensils size={18} />}
-              label="Aktiv dövriyyə"
+              label={t("masalar.activeTurnover")}
               value={`₼ ${stats.revenue.toFixed(2)}`}
               color="from-amber-500 to-orange-600"
               wide
@@ -301,16 +303,16 @@ const Masalar = () => {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Masa axtar..."
+                  placeholder={t("masalar.search")}
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
                 />
               </div>
 
               <div className="flex gap-1.5 bg-slate-100 p-1 rounded-lg overflow-x-auto">
                 {[
-                  { id: "all", label: "Hamısı" },
-                  { id: "free", label: "Boş" },
-                  { id: "occupied", label: "Dolu" },
+                  { id: "all", label: t("common.all") },
+                  { id: "free", label: t("masalar.empty") },
+                  { id: "occupied", label: t("masalar.occupied") },
                 ].map((f) => (
                   <button
                     key={f.id}
@@ -330,7 +332,7 @@ const Masalar = () => {
                 <button
                   onClick={() => fetchTables(masaType)}
                   className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
-                  title="Yenilə"
+                  title={t("masalar.refresh")}
                 >
                   <RefreshCw size={16} />
                 </button>
@@ -338,7 +340,7 @@ const Masalar = () => {
                   <button
                     onClick={() => setMasaAyarlar(true)}
                     className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
-                    title="Masa ayarları"
+                    title={t("masalar.tableSettings")}
                   >
                     <Settings2 size={16} />
                   </button>
@@ -350,7 +352,7 @@ const Masalar = () => {
               <GroupTab
                 active={masaType === 0}
                 onClick={() => setMasaType(0)}
-                label="Hamısı"
+                label={t("common.all")}
                 count={stats.total}
               />
               {groups.map((group) => (
@@ -373,7 +375,7 @@ const Masalar = () => {
           {filteredTables.length === 0 && !loading ? (
             <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center text-slate-500">
               <LayoutGrid size={40} className="mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Masa tapılmadı</p>
+              <p className="text-sm">{t("masalar.noTables")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-3">

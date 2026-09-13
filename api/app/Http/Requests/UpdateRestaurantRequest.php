@@ -16,7 +16,7 @@ class UpdateRestaurantRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'logo' => 'nullable|image|max:2048', // optional, with file size limit
-            // 'language' => 'required|string|max:255',
+            'language' => 'sometimes|string|in:az,tr,ru,en',
             // 'currency' => 'required|string|max:255',
             'custom_message' => 'nullable|string|max:1000',
             'is_qr_active' => 'required|boolean',

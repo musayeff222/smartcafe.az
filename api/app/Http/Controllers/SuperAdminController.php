@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreRestaurantRequest;
 use App\Http\Requests\SuperAdminUpdateRestaurantRequest;
+use App\Models\AdminAuditLog;
 use App\Models\Restaurant;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -11,6 +12,54 @@ use Illuminate\Support\Facades\DB;
 
 class SuperAdminController extends Controller
 {
+
+    /**
+     * Super admin: seçilmiş restoranın admin istifadəçisi adına API token (PIN olmadan panelə giriş üçün).
+     */
+    public function issueRestaurantAccessToken(Request $request, Restaurant $restaurant)
+    {
+        $admin = $restaurant->users()
+            ->whereHas('roles', function ($roleQuery) {
+                $roleQuery->where('name', 'admin');
+            })
+            ->first();
+
+        if (! $admin) {
+            return response()->json([
+                'message' => 'Bu restoran üçün admin rolü olan istifadəçi tapılmadı.',
+            ], 404);
+        }
+
+        $token = $admin->createToken('super_admin_restaurant_entry')->plainTextToken;
+        $roleName = $admin->roles()->first()?->name ?? 'admin';
+
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'role' => $roleName,
+            'restaurant_id' => $restaurant->id,
+        ]);
+    }
+
+    public function accessToken(Request $request, $id)
+    {
+        $restaurant = Restaurant::find($id);
+        if (! $restaurant) {
+            return response()->json(['message' => 'Restaurant not found.'], 404);
+        }
+
+        return $this->issueRestaurantAccessToken($request, $restaurant);
+    }
+
+    public function auditLogs(Request $request)
+    {
+        $logs = AdminAuditLog::query()
+            ->orderByDesc('id')
+            ->limit(200)
+            ->get();
+
+        return response()->json($logs);
+    }
 
     /**
      * Display a listing of the restaurants with optional filters.
@@ -64,7 +113,7 @@ class SuperAdminController extends Controller
             $restaurant = Restaurant::create([
                 'name' => $data['name'],
                 'logo' => $data['logo'] ?? null,
-                'language' => $data['language'] ?? 'en',
+                'language' => $data['language'] ?? 'az',
                 'currency' => $data['currency'] ?? 'USD',
                 'custom_message' => $data['custom_message'] ?? null,
                 'is_qr_active' => $data['is_qr_active'] ?? true,

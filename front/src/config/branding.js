@@ -2,6 +2,10 @@
 export const APP_NAME =
   process.env.REACT_APP_APP_NAME?.trim() || 'Smartcafe';
 
+/** Web menyu footer linki */
+export const POWERED_BY_URL = 'https://smartcafe.az';
+export const POWERED_BY_NAME = 'SmartCafe';
+
 export const titleSuffix = ` | ${APP_NAME}`;
 
 export function pageTitle(part) {

@@ -1,0 +1,22 @@
+---
+description: İki mərhələli iş — lokal test, sonra canlıya yalnız dəyişikliklər; deploy əmri veriləndə git tag seçimi.
+alwaysApply: true
+---
+
+# SmartCafe — lokal / canlı iş axını
+
+## Mərhələ 1 — lokal
+- Kod dəyişiklikləri bu repoda edilir, lokalda test edilir (`START_FULL_DEV.bat`, `api`, `front`).
+- Canlı serverə birbaşa toxunulmur.
+
+## Mərhələ 2 — canlıya göndərmə (istifadəçi açıqca istəyəndə)
+İstifadəçi **canlıya / əsas serverə göndər** kimi ifadə işlədəndə:
+
+1. **Tam kod bazasını** “göndər” kimi təqdim etmə — yalnız **dəyişikliklər** (diff, seçilmiş commitlər, fayllar).
+2. Əvvəlcə repoda **git tag** siyahısını əsas götür: `git tag --sort=-creatordate` (və ya `git tag -l`) nəticəsini **nömrələnmiş seçimlər** kimi göstər; istifadəçi hansı tag(lar) və ya aralığın canlıya uyğun olduğunu **seçsin**.
+3. Seçimdən sonra yalnız uyğun **dəyişiklikləri** təklif et: məs. `git log tagA..tagB --oneline`, `git diff tagA..tagB`, lazım gələrsə `git format-patch` və ya konkret fayl siyahısı; VPS/GitHost addımlarını **seçilmiş dəyişikliklər** kontekstində yaz.
+4. İstifadəçi təsdiq etmədən remote-a force push və ya təhlükəli əmrlər təklif etmə.
+
+## Ümumi
+- React Router v7 future flag xəbərdarlıqları təcili deyil.
+- API üçün tunel + `.env` lokal konfiqurasiya istifadəçidə qalır; rule-da sirr saxlanmır.

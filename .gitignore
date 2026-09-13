@@ -63,3 +63,7 @@ build/
 # ===== Diğer =====
 terminals/
 .history/
+_vps_new/
+test-deploy.tgz
+START_FULL_DEV.bat
+scripts/bin/*.exe

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { pageTitle, APP_NAME } from "../config/branding";
+import { useLanguage } from "../i18n/LanguageContext";
 import { Navigate } from "react-router-dom";
 import axios from "axios";
 import { base_url } from "../api/index";
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 
 const Login = () => {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -38,17 +40,24 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
-      setError("Email və şifrə tələb olunur");
+      setError(t("login.emailPasswordRequired"));
       return;
     }
     setLoading(true);
     setError("");
     try {
-      const response = await axios.post(`${base_url}/login`, {
-        email,
-        password,
+      // VPS-də JSON body parse problemi olduğuna görə form-urlencoded göndəririk.
+      const form = new URLSearchParams();
+      form.set("email", email);
+      form.set("password", password);
+      const response = await axios.post(`${base_url}/login`, form, {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+        },
       });
       localStorage.setItem("token", response.data.access_token);
+      localStorage.removeItem("super_admin_pin_bypass");
       if (remember) {
         localStorage.setItem("remembered_email", email);
       } else {
@@ -63,9 +72,15 @@ const Login = () => {
       window.location.reload();
     } catch (err) {
       if (err.response && err.response.status === 401) {
-        setError("Email və ya şifrə yanlışdır");
+        setError(t("login.invalidCredentials"));
+      } else if (!err.response || err.response.status >= 500) {
+        const apiMsg = err.response?.data?.message || "";
+        const dbDown =
+          typeof apiMsg === "string" &&
+          (apiMsg.includes("SQLSTATE") || apiMsg.includes("Connection"));
+        setError(dbDown ? t("login.dbConnection") : t("login.apiUnavailable"));
       } else {
-        setError("Giriş baş tutmadı. Yenidən cəhd edin.");
+        setError(t("login.retry"));
       }
     } finally {
       setLoading(false);
@@ -86,7 +101,7 @@ const Login = () => {
         />
       </Helmet>
 
-      <main className="min-h-screen grid lg:grid-cols-2 bg-slate-50">
+      <main className="min-h-screen grid lg:grid-cols-2 bg-slate-50 dark:bg-slate-950">
         <aside className="hidden lg:flex relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-fuchsia-600 text-white p-12 flex-col justify-between">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute -top-32 -left-32 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
@@ -108,7 +123,7 @@ const Login = () => {
             <div>
               <div className="text-xl font-bold leading-tight">{APP_NAME}</div>
               <div className="text-xs text-white/70">
-                Restoran idarəetmə sistemi
+                {t("login.tagline")}
               </div>
             </div>
           </div>
@@ -116,33 +131,32 @@ const Login = () => {
           <div className="relative z-10 space-y-8 max-w-md">
             <div>
               <h1 className="text-4xl xl:text-5xl font-bold leading-tight">
-                Restoranınızı <br />
+                {t("login.headlineLine1")} <br />
                 <span className="bg-gradient-to-r from-amber-200 to-pink-200 bg-clip-text text-transparent">
-                  ağıllı
+                  {t("login.headlineHighlight")}
                 </span>{" "}
-                idarə edin
+                {t("login.headlineLine2")}
               </h1>
               <p className="mt-4 text-white/80 text-base leading-relaxed">
-                Masalar, sifarişlər, stok və hesabatlar — hamısı bir yerdə.
-                İstənilən cihazdan işləyin.
+                {t("login.heroDesc")}
               </p>
             </div>
 
             <div className="space-y-3">
               <Feature
                 icon={<Smartphone size={18} />}
-                title="Mobil uyğun"
-                text="Telefon, tablet və masaüstündə eyni rahatlıqla"
+                title={t("login.featureMobileTitle")}
+                text={t("login.featureMobileText")}
               />
               <Feature
                 icon={<BarChart3 size={18} />}
-                title="Canlı hesabatlar"
-                text="Gündəlik kassa və satış analizləri anında"
+                title={t("login.featureReportsTitle")}
+                text={t("login.featureReportsText")}
               />
               <Feature
                 icon={<ShieldCheck size={18} />}
-                title="Təhlükəsiz"
-                text="Məlumatlarınız şifrələnmiş bağlantı ilə qorunur"
+                title={t("login.featureSecureTitle")}
+                text={t("login.featureSecureText")}
               />
             </div>
           </div>
@@ -161,13 +175,13 @@ const Login = () => {
               <div className="text-2xl font-bold text-slate-800">{APP_NAME}</div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/60 border border-slate-100 p-6 sm:p-8">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/60 dark:shadow-none border border-slate-100 dark:border-slate-700 p-6 sm:p-8">
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-slate-800">
-                  Xoş gəlmisiniz
+                  {t("login.welcome")}
                 </h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Davam etmək üçün hesabınıza daxil olun
+                  {t("login.subtitle")}
                 </p>
               </div>
 
@@ -184,7 +198,7 @@ const Login = () => {
                     htmlFor="email"
                     className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide"
                   >
-                    Email
+                    {t("login.email")}
                   </label>
                   <div className="relative">
                     <Mail
@@ -210,7 +224,7 @@ const Login = () => {
                     htmlFor="password"
                     className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide"
                   >
-                    Şifrə
+                    {t("login.password")}
                   </label>
                   <div className="relative">
                     <Lock
@@ -233,7 +247,7 @@ const Login = () => {
                       tabIndex={-1}
                       onClick={() => setShowPassword((v) => !v)}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
-                      aria-label={showPassword ? "Şifrəni gizlət" : "Şifrəni göstər"}
+                      aria-label={showPassword ? t("login.hidePassword") : t("login.showPassword")}
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -247,7 +261,7 @@ const Login = () => {
                     onChange={(e) => setRemember(e.target.checked)}
                     className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span className="text-sm text-slate-600">Məni xatırla</span>
+                  <span className="text-sm text-slate-600">{t("login.remember")}</span>
                 </label>
 
                 <button
@@ -258,11 +272,11 @@ const Login = () => {
                   {loading ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      Giriş edilir...
+                      {t("login.submitting")}
                     </>
                   ) : (
                     <>
-                      Daxil Ol
+                      {t("login.submit")}
                       <ArrowRight
                         size={16}
                         className="group-hover:translate-x-0.5 transition"
@@ -274,7 +288,7 @@ const Login = () => {
 
               <div className="mt-6 pt-5 border-t border-slate-100 text-center space-y-2">
                 <p className="text-xs text-slate-500">
-                  Hesabınız yoxdur? İş birliyi və demo üçün
+                  {t("login.noAccount")}
                 </p>
                 <a
                   title="+994 50 424 38 92"

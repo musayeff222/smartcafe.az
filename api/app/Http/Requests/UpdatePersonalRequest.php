@@ -21,7 +21,7 @@ class UpdatePersonalRequest extends FormRequest
             'role' => 'required|in:general,waiter',
             'permissions' => 'nullable|array', // Only required for 'general' role
             'permissions.*' => 'string|exists:permissions,name', // Ensure the permissions exist
-            'password' => 'nullable|string|min:8|confirmed', // Add password validation rules
+            'password' => ['nullable', 'string', 'regex:/^\d{6,}$/'],
         ];
     }
 }

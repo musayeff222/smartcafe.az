@@ -19,7 +19,9 @@ const PasswordScreenFour = ({
   pendingRemoveData,
   onClose,
   fetchTableOrders,
+  fetchQuickOrders,
   tableId,
+  quickOrderId,
   category = "azaltma",
 }) => {
   const [ready, setReady] = useState(false);
@@ -27,8 +29,12 @@ const PasswordScreenFour = ({
 
   const runSubtract = async () => {
     try {
+      const url = quickOrderId
+        ? `${base_url}/quick-orders/${quickOrderId}/subtract-stock`
+        : `${base_url}/tables/${tableId}/subtract-stock`;
+
       await axios.post(
-        `${base_url}/tables/${tableId}/subtract-stock`,
+        url,
         {
           stock_id: pendingRemoveData.stockId,
           quantity: pendingRemoveData.quantity || 1,
@@ -37,7 +43,8 @@ const PasswordScreenFour = ({
         },
         getHeaders()
       );
-      fetchTableOrders?.();
+      if (quickOrderId) fetchQuickOrders?.();
+      else fetchTableOrders?.();
       onClose?.();
     } catch (err) {
       console.error("Silinmə zamanı xəta:", err);

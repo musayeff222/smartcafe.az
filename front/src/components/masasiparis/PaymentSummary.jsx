@@ -47,12 +47,13 @@ const PaymentSummary = ({
   inputValue,
   handlePsTotalChange,
   handlePsTotalBlur,
-  setHesabKes,
+  onOpenHesabKes,
   handlePrint,
   handleDeleteMasa,
   TotalPriceHesab,
   expiredTimerInfo,
-  onOpenPsModal
+  onOpenPsModal,
+  compact = false,
 }) => {
   if (role === "waiter") {
     return null; // Ofisiantlar üçün bu paneli göstərmə
@@ -64,34 +65,42 @@ const PaymentSummary = ({
   const hasExpiredTimer = isPsClub === 1 && expiredTimerInfo && expiredTimerInfo.isExpired;
 
   return (
-    <div className="flex flex-col gap-4 mt-6 p-4 md:p-6 bg-white rounded-xl shadow-2xl border border-gray-100 w-full max-w-2xl mx-auto">
+    <div
+      className={`flex flex-col bg-white rounded-xl shadow-2xl border border-gray-100 w-full ${
+        compact ? "gap-2 mt-0 p-2.5" : "gap-4 mt-6 p-4 md:p-6 max-w-2xl mx-auto"
+      }`}
+    >
       {isTotalAvailable ? (
         <>
-          <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-300">
-            <span className="font-semibold text-base md:text-lg text-gray-700">Ön Ödəniş:</span>
-            <div className="flex items-stretch">
-              <div className={`flex items-center border border-r-0 font-medium py-1 px-2 rounded-l bg-gray-50 ${BASE_VALUE_SIZE} text-gray-700`}>
-                ₼
+          {!compact && (
+            <>
+              <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-300">
+                <span className="font-semibold text-base md:text-lg text-gray-700">Ön Ödəniş:</span>
+                <div className="flex items-stretch">
+                  <div className={`flex items-center border border-r-0 font-medium py-1 px-2 rounded-l bg-gray-50 ${BASE_VALUE_SIZE} text-gray-700`}>
+                    ₼
+                  </div>
+                  <input
+                    type="text"
+                    value={Number(totalPrice.total_prepare).toFixed(2)}
+                    readOnly
+                    className={`${INPUT_BASE_CLASSES} border-gray-300 bg-gray-50`}
+                  />
+                  <button
+                    onClick={() => setOncedenodePopop(true)}
+                    className={PREPAYMENT_BUTTON_CLASSES}
+                  >
+                    <PlusIcon />
+                  </button>
+                </div>
               </div>
-              <input
-                type="text"
-                value={Number(totalPrice.total_prepare).toFixed(2)}
-                readOnly
-                className={`${INPUT_BASE_CLASSES} border-gray-300 bg-gray-50`}
-              />
-              <button
-                onClick={() => setOncedenodePopop(true)}
-                className={PREPAYMENT_BUTTON_CLASSES}
-              >
-                <PlusIcon />
-              </button>
-            </div>
-          </div>
 
-          <SummaryItem 
-            label="Masa Toplamı"
-            value={totalPrice.total}
-          />
+              <SummaryItem
+                label="Masa Toplamı"
+                value={totalPrice.total}
+              />
+            </>
+          )}
 
           {isPsClub === 1 && psPrice && psPrice.length > 0 && (
             <div className={`flex justify-between items-center ${PS_CLUB_WRAPPER}`}>
@@ -128,7 +137,7 @@ const PaymentSummary = ({
             </div>
           </div>
 
-          {Number(totalPrice.total_prepare) > 0 && (
+          {!compact && Number(totalPrice.total_prepare) > 0 && (
             <div className="flex flex-col gap-3 p-2 mx-1 border-t border-dashed border-gray-300">
               <SummaryItem 
                   label="Artıq Ödənilib"
@@ -154,7 +163,7 @@ const PaymentSummary = ({
       )}
       <TotalPriceHesab
         totalPrice={hasExpiredTimer && !isTotalAvailable ? Number(expiredTimerInfo.price) : overallTotal} 
-        setHesabKes={setHesabKes}
+        onOpenHesabKes={onOpenHesabKes}
         handlePrint={handlePrint}
         handleDeleteMasa={handleDeleteMasa}
       />

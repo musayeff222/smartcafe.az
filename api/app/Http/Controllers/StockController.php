@@ -129,6 +129,31 @@ class StockController extends Controller
         }
 
         $stock->update($data);
+
+        if ($request->has('additionalPrices')) {
+            $keepIds = [];
+            foreach ($request->input('additionalPrices') as $detail) {
+                $payload = [
+                    'price' => $detail['price'],
+                    'unit' => $detail['unit'],
+                    'count' => (int) $detail['count'],
+                ];
+
+                if (!empty($detail['id'])) {
+                    $existing = $stock->details()->where('id', $detail['id'])->first();
+                    if ($existing) {
+                        $existing->update($payload);
+                        $keepIds[] = $existing->id;
+                    }
+                } else {
+                    $created = $stock->details()->create($payload);
+                    $keepIds[] = $created->id;
+                }
+            }
+
+            $stock->details()->whereNotIn('id', $keepIds)->delete();
+        }
+
         return response()->json($stock->load('details'));
     }
 

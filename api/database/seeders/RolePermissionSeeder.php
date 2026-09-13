@@ -36,6 +36,12 @@ class RolePermissionSeeder extends Seeder
             'manage-payments',
             'manage-quick-orders',
             'table-order',
+            'expenses.view',
+            'expenses.create',
+            'expenses.update',
+            'expenses.delete',
+            'expenses.manage-categories',
+            'expenses.export',
         ];
 
         // Create permissions with the specified guard
@@ -63,6 +69,12 @@ class RolePermissionSeeder extends Seeder
             'access-payments',
             'manage-payments',
             'manage-quick-orders',
+            'expenses.view',
+            'expenses.create',
+            'expenses.update',
+            'expenses.delete',
+            'expenses.manage-categories',
+            'expenses.export',
         ];
         $admin->givePermissionTo($adminPermissions);
 

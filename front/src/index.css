@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
 .fis{
     display: flex !important;
     flex-direction: column !important;
@@ -12,7 +27,117 @@
 } */
  body{
     background-color: #f5f7fb;
+    @apply text-slate-900 transition-colors duration-200;
  }
+
+/* ——— Global gece rejimi (bütün səhifələr) ——— */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0f172a;
+  @apply text-slate-100;
+}
+
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+html.dark select,
+html.dark textarea,
+html.dark .form-item {
+  @apply bg-slate-800 border-slate-600 text-slate-100 placeholder:text-slate-500;
+}
+
+html.dark .bg-white:not([class*="from-"]):not([class*="gradient"]) {
+  @apply !bg-slate-900 !text-slate-100;
+}
+
+html.dark .bg-slate-50:not([class*="from-"]) {
+  @apply !bg-slate-900/80;
+}
+
+html.dark .bg-slate-100:not([class*="from-"]) {
+  @apply !bg-slate-800;
+}
+
+html.dark .border-slate-100,
+html.dark .border-slate-200 {
+  @apply !border-slate-700;
+}
+
+html.dark .text-slate-800,
+html.dark .text-slate-900 {
+  @apply !text-slate-100;
+}
+
+html.dark .text-slate-700 {
+  @apply !text-slate-200;
+}
+
+html.dark .text-slate-600 {
+  @apply !text-slate-300;
+}
+
+html.dark .text-slate-500 {
+  @apply !text-slate-400;
+}
+
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-slate-100:hover {
+  @apply !bg-slate-800;
+}
+
+html.dark .shadow-sm,
+html.dark .shadow-lg,
+html.dark .shadow-2xl {
+  --tw-shadow-color: rgb(0 0 0 / 0.35);
+}
+
+html.dark .stok-li {
+  @apply !border-slate-700 !bg-slate-900 hover:!border-indigo-500;
+}
+
+html.dark .dropdown {
+  @apply !bg-slate-900 !border-slate-700;
+}
+
+html.dark .dropdown-link {
+  @apply !text-slate-200 hover:!bg-slate-800;
+}
+
+html.dark .nav-link {
+  @apply !bg-slate-800 !text-indigo-300 !border-slate-600;
+}
+
+html.dark .masa-detail-item {
+  @apply !border-slate-600;
+}
+
+html.dark .hesap-kes-item,
+html.dark .hesap-kes-item2 {
+  @apply !border-slate-600 !bg-slate-800;
+}
+
+/* Cədvəl / siyahı */
+html.dark table {
+  @apply text-slate-200;
+}
+
+html.dark thead {
+  @apply text-slate-400;
+}
+
+html.dark tbody tr {
+  @apply border-slate-700;
+}
+
+html.dark tbody tr:hover {
+  @apply bg-slate-800/60;
+}
+
+/* Modal overlay */
+html.dark .fixed.inset-0.bg-black\/50 {
+  @apply bg-black/70;
+}
  .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -21,7 +146,7 @@
     display: none;
   }
 .stok-li{
-    @apply border rounded gap-2 w-full p-2 flex items-center font-semibold mb-1;
+    @apply border border-slate-200 rounded-xl gap-2 w-full p-2.5 flex items-center text-sm font-medium mb-1.5 cursor-pointer transition-all hover:border-indigo-300 hover:shadow-sm;
 }
 .btn-ad{
     @apply py-2 px-4 rounded bg-green-500 text-white flex items-center gap-2;

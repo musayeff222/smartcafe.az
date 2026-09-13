@@ -6,6 +6,8 @@ import {
   BACKUP_FILENAME_PREFIX,
 } from "../config/branding";
 import { useNavigate } from "react-router-dom";
+import MarketingAdminPanel from "../components/MarketingAdminPanel";
+import WebDomainAdminPanel from "../components/WebDomainAdminPanel";
 import AddUserModal from "../components/AddUserModal";
 import EditUserModal from "../components/EditUserModal";
 import DeleteUserModal from "../components/DeleteUserModal";
@@ -35,6 +37,9 @@ import {
   Database,
   Loader2,
   ShieldCheck,
+  Store,
+  Globe,
+  Link2,
 } from "lucide-react";
 
 const STATUS_FILTERS = [
@@ -56,6 +61,7 @@ function Dashboard() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [adminSection, setAdminSection] = useState("restaurants");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
   const [backupRunning, setBackupRunning] = useState(false);
@@ -183,6 +189,31 @@ function Dashboard() {
   const handleLogout = () => {
     localStorage.removeItem("admin_token");
     navigate("/adminPage");
+  };
+
+  const handleEnterRestaurant = async (r) => {
+    try {
+      const res = await axios.post(
+        `${base_url}/admin-restaurants/${r.id}/access-token`,
+        {},
+        authHeaders()
+      );
+      const { access_token: accessToken, role: resRole } = res.data;
+      localStorage.setItem("token", accessToken);
+      if (resRole) localStorage.setItem("role", resRole);
+      localStorage.setItem("super_admin_pin_bypass", "1");
+      const { invalidateSecuritySettingsCache } = await import(
+        "../utils/securityPasswords"
+      );
+      invalidateSecuritySettingsCache();
+      window.location.assign("/masalar");
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message ||
+        e?.response?.data?.error ||
+        "Restorana giriş uğursuz oldu.";
+      window.alert(msg);
+    }
   };
 
   const makeAuthHeader = (which = "admin") => {
@@ -567,7 +598,46 @@ function Dashboard() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <div className="hidden sm:flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setAdminSection("restaurants")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition ${
+                    adminSection === "restaurants"
+                      ? "bg-white text-indigo-700 shadow-sm"
+                      : "text-slate-600 hover:text-slate-800"
+                  }`}
+                >
+                  <Store size={14} />
+                  Restoranlar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdminSection("marketing")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition ${
+                    adminSection === "marketing"
+                      ? "bg-white text-indigo-700 shadow-sm"
+                      : "text-slate-600 hover:text-slate-800"
+                  }`}
+                >
+                  <Globe size={14} />
+                  smartcafe.az
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdminSection("web-domains")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition ${
+                    adminSection === "web-domains"
+                      ? "bg-white text-indigo-700 shadow-sm"
+                      : "text-slate-600 hover:text-slate-800"
+                  }`}
+                >
+                  <Link2 size={14} />
+                  Web domain
+                </button>
+              </div>
+              {adminSection === "restaurants" && (
               <button
                 onClick={fetchRestaurants}
                 className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
@@ -576,6 +646,7 @@ function Dashboard() {
                 <RefreshCw size={16} />
                 <span className="hidden md:inline">Yenilə</span>
               </button>
+              )}
               <button
                 onClick={handleLogout}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
@@ -588,6 +659,12 @@ function Dashboard() {
         </header>
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+          {adminSection === "marketing" ? (
+            <MarketingAdminPanel />
+          ) : adminSection === "web-domains" ? (
+            <WebDomainAdminPanel />
+          ) : (
+            <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <StatCard
               icon={<Users size={20} />}
@@ -774,7 +851,7 @@ function Dashboard() {
                         <th className="px-4 py-3 text-left font-semibold">Email</th>
                         <th className="px-4 py-3 text-left font-semibold">Status</th>
                         <th className="px-4 py-3 text-left font-semibold">Müddət</th>
-                        <th className="px-4 py-3 text-right font-semibold">Əməliyyatlar</th>
+                        <th className="px-4 py-3 text-right font-semibold">Giriş / əməliyyat</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -822,6 +899,13 @@ function Dashboard() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-1.5">
+                              <IconButton
+                                title="Restorana gir (PIN olmadan)"
+                                color="emerald"
+                                onClick={() => handleEnterRestaurant(r)}
+                              >
+                                <Store size={15} />
+                              </IconButton>
                               <IconButton
                                 title="Düzənlə"
                                 color="amber"
@@ -892,7 +976,14 @@ function Dashboard() {
 
                       <div className="mt-2">{getExpiryBadge(r.active_until)}</div>
 
-                      <div className="mt-3 flex gap-2">
+                      <div className="mt-3 flex gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => handleEnterRestaurant(r)}
+                          className="flex-1 min-w-[8rem] inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-50 text-emerald-800 text-sm font-medium hover:bg-emerald-100"
+                        >
+                          <Store size={14} /> Restorana gir
+                        </button>
                         <button
                           onClick={() => {
                             setSelectedRestaurant(r);
@@ -922,6 +1013,8 @@ function Dashboard() {
               </>
             )}
           </div>
+            </>
+          )}
         </main>
 
         {sidebarOpen && (
@@ -1207,6 +1300,7 @@ const IconButton = ({ children, color, onClick, title }) => {
   const colorMap = {
     amber: "bg-amber-50 text-amber-700 hover:bg-amber-100",
     red: "bg-red-50 text-red-700 hover:bg-red-100",
+    emerald: "bg-emerald-50 text-emerald-800 hover:bg-emerald-100",
   };
   return (
     <button

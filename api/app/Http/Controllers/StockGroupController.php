@@ -20,7 +20,10 @@ class StockGroupController extends Controller
             return response()->json(['message' => 'User does not have an associated restaurant.'], 403);
         }
 
-        $stockGroups = StockGroup::where('restaurant_id', $restaurant->id)->get();
+        $stockGroups = StockGroup::where('restaurant_id', $restaurant->id)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
         return response()->json($stockGroups);
     }
 
@@ -37,6 +40,11 @@ class StockGroupController extends Controller
         // Prepare the data, associating the stock group with the user's restaurant
         $data = $request->validated();
         $data['restaurant_id'] = $restaurant->id;
+
+        if (!array_key_exists('sort_order', $data) || $data['sort_order'] === null) {
+            $maxOrder = StockGroup::where('restaurant_id', $restaurant->id)->max('sort_order');
+            $data['sort_order'] = ($maxOrder ?? 0) + 1;
+        }
 
         // Handle image upload
         if ($request->hasFile('image')) {
@@ -113,5 +121,41 @@ class StockGroupController extends Controller
         $stockGroup = StockGroup::where('restaurant_id', $restaurant->id)->findOrFail($id);
         $stockGroup->delete();
         return response()->json(null, 204);
+    }
+
+    public function reorder(Request $request)
+    {
+        $restaurant = $request->user()->restaurant;
+
+        if (!$restaurant) {
+            return response()->json(['message' => 'User does not have an associated restaurant.'], 403);
+        }
+
+        $validated = $request->validate([
+            'order' => 'required|array|min:1',
+            'order.*' => 'integer|distinct',
+        ]);
+
+        $ids = collect($validated['order'])->values()->all();
+        $ownedCount = StockGroup::where('restaurant_id', $restaurant->id)
+            ->whereIn('id', $ids)
+            ->count();
+
+        if ($ownedCount !== count($ids)) {
+            return response()->json(['message' => 'Invalid group order.'], 422);
+        }
+
+        foreach ($ids as $index => $id) {
+            StockGroup::where('restaurant_id', $restaurant->id)
+                ->where('id', $id)
+                ->update(['sort_order' => $index + 1]);
+        }
+
+        $stockGroups = StockGroup::where('restaurant_id', $restaurant->id)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        return response()->json($stockGroups);
     }
 }

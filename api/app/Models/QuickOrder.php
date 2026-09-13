@@ -9,7 +9,7 @@ class QuickOrder extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['restaurant_id', 'order_id', 'name', 'phone', 'address', 'note', 'courier_id'];
+    protected $fillable = ['restaurant_id', 'order_id', 'name', 'phone', 'address', 'note', 'courier_id', 'promo_code', 'promo_discount'];
 
     // Relationship with Order
     public function order()

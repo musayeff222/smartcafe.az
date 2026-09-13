@@ -19,7 +19,7 @@ class PersonalRequest extends FormRequest
             'role' => 'required|in:general,waiter',
             'permissions' => 'nullable|array', // Only required for 'general' role
             'permissions.*' => 'string|exists:permissions,name', // Ensure the permissions exist
-            'password' => 'required|string|min:8|confirmed', // Add password validation rules
+            'password' => ['required', 'string', 'regex:/^\d{6,}$/'],
         ];
     }
 }

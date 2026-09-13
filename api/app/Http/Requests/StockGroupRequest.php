@@ -16,6 +16,7 @@ class StockGroupRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
+            'sort_order' => 'nullable|integer|min:0|max:999999',
             'image' => 'nullable|image|max:2048', // File validation for the image
             'color' => 'nullable|string|max:7', // Color code (e.g., #ffffff)
             'kitchen_printer_active' => 'required|boolean',

@@ -5,12 +5,21 @@ import DateTimeDisplay from "./DateTimeDisplay";
 import { connect } from "react-redux";
 import { logOut } from "../action/MainAction";
 import NewOrders from "./NewOrders";
+import WebOrdersBell from "./WebOrdersBell";
+import RestaurantNoticeBell from "./RestaurantNoticeBell";
 import { base_url, img_url } from "../api/index";
 import { APP_NAME, BACKUP_FORMAT_ID } from "../config/branding";
+import { useLanguage } from "../i18n/LanguageContext";
+import { useTheme } from "../context/ThemeContext";
+import { useUiSettings } from "../context/UiSettingsContext";
+import { pathToPageKey } from "../config/uiSettings";
 import {
   Menu,
   X,
+  Moon,
+  Sun,
   LayoutGrid,
+  LayoutDashboard,
   Receipt,
   Users,
   Wallet,
@@ -42,6 +51,9 @@ const getAuthHeaders = () => {
 };
 
 const Header = ({ token, logOut }) => {
+  const { t } = useLanguage();
+  const { isDark, toggle } = useTheme();
+  const { isPageVisible } = useUiSettings();
   const [tanimDropShow, setTanimDropShow] = useState(false);
   const [profDropShow, setProfDropShow] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -182,6 +194,7 @@ const Header = ({ token, logOut }) => {
     } catch (e) {}
     localStorage.removeItem("token");
     localStorage.removeItem("role");
+    localStorage.removeItem("super_admin_pin_bypass");
     navigate("/");
   };
 
@@ -259,9 +272,10 @@ const Header = ({ token, logOut }) => {
 
     setBackupRunning(false);
     alert(
-      `Backup hazırdır! ${itemCount} qeyd endirildi. ${
-        Object.keys(backup.errors).length
-      } endpoint əlçatmaz idi.`
+      t("nav.backupReady", {
+        count: itemCount,
+        errors: Object.keys(backup.errors).length,
+      })
     );
   };
 
@@ -274,64 +288,74 @@ const Header = ({ token, logOut }) => {
   if (!token) return null;
 
   const mainLinks = [
-    { to: "/masalar", label: "Masalar", icon: <LayoutGrid size={17} /> },
+    { to: "/panel", label: t("nav.dashboard"), icon: <LayoutDashboard size={17} /> },
+    { to: "/masalar", label: t("nav.tables"), icon: <LayoutGrid size={17} /> },
   ];
   if (role !== "waiter") {
     mainLinks.push(
-      { to: "/siparisler", label: "Sifarişlər", icon: <Receipt size={17} /> },
-      { to: "/musteriler", label: "Müştərilər", icon: <Users size={17} /> },
-      { to: "/gunluk-kasa", label: "Kassa", icon: <Wallet size={17} /> }
+      { to: "/siparisler", label: t("nav.orders"), icon: <Receipt size={17} /> },
+      { to: "/musteriler", label: t("nav.customers"), icon: <Users size={17} /> },
+      { to: "/gunluk-kasa", label: t("nav.cash"), icon: <Wallet size={17} /> }
     );
   }
 
   const tanimGroups = [
     {
       id: "anbar",
-      label: "Anbar və Məhsul",
+      label: t("nav.groupWarehouse"),
       icon: <Boxes size={15} />,
       items: [
-        { to: "/stok", label: "Anbara Məhsul", icon: <Package size={15} /> },
-        { to: "/material", label: "Xammal", icon: <Boxes size={15} /> },
-        { to: "/stocksadd", label: "Setlər", icon: <Layers size={15} /> },
+        { to: "/stok", label: t("nav.warehouseProducts"), icon: <Package size={15} /> },
+        { to: "/material", label: t("nav.rawMaterials"), icon: <Boxes size={15} /> },
+        { to: "/stocksadd", label: t("nav.sets"), icon: <Layers size={15} /> },
       ],
     },
     {
       id: "heyet",
-      label: "Heyət və Kuryer",
+      label: t("nav.groupStaff"),
       icon: <Users size={15} />,
       items: [
-        { to: "/personel-tanimlari", label: "İşçi Qeydiyyatı", icon: <UserCog size={15} /> },
-        { to: "/couriers", label: "Kuryer Qeydiyyatı", icon: <Truck size={15} /> },
+        { to: "/personel-tanimlari", label: t("nav.staffRegistration"), icon: <UserCog size={15} /> },
+        { to: "/couriers", label: t("nav.courierRegistration"), icon: <Truck size={15} /> },
       ],
     },
     {
       id: "nizamlama",
-      label: "Nizamlamalar",
+      label: t("nav.groupSettings"),
       icon: <SlidersHorizontal size={15} />,
       items: [
-        { to: "/masa-tanimlari", label: "Masa Nizamlamaları", icon: <Table2 size={15} /> },
-        { to: "/genel-ayarlar", label: "Ümumi Nizamlamalar", icon: <Settings size={15} /> },
+        { to: "/masa-tanimlari", label: t("nav.tableSettings"), icon: <Table2 size={15} /> },
+        { to: "/genel-ayarlar", label: t("nav.generalSettings"), icon: <Settings size={15} /> },
       ],
     },
     {
       id: "maliyye",
-      label: "Maliyyə",
+      label: t("nav.groupFinance"),
       icon: <Wallet size={15} />,
       items: [
-        { to: "/expenses", label: "Xərclər", icon: <Banknote size={15} /> },
+        { to: "/expenses", label: t("nav.expenses"), icon: <Banknote size={15} /> },
       ],
     },
   ];
 
-  const allTanimItems = tanimGroups.flatMap((g) => g.items);
+  const isLinkVisible = (to) => {
+    const key = pathToPageKey(to);
+    return key ? isPageVisible(key) : true;
+  };
+
+  const visibleMainLinks = mainLinks.filter((l) => isLinkVisible(l.to));
+  const visibleTanimGroups = tanimGroups
+    .map((g) => ({ ...g, items: g.items.filter((i) => isLinkVisible(i.to)) }))
+    .filter((g) => g.items.length > 0);
+  const allTanimItems = visibleTanimGroups.flatMap((g) => g.items);
 
   return (
     <>
-      <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
+      <nav className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="px-3 sm:px-5 h-14 flex items-center gap-3">
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="lg:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-700"
+            className="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
             aria-label="Menu"
           >
             <Menu size={20} />
@@ -350,24 +374,24 @@ const Header = ({ token, logOut }) => {
               </div>
             )}
             <div className="hidden sm:flex flex-col leading-tight">
-              <span className="text-sm font-bold text-slate-800 max-w-[10rem] truncate">
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-100 max-w-[10rem] truncate">
                 {formData.name || APP_NAME}
               </span>
               <span className="text-[10px] text-slate-500 uppercase tracking-wider">
-                POS System
+                {t("common.posSystem")}
               </span>
             </div>
           </Link>
 
           <div className="hidden lg:flex items-center gap-1 ml-3">
-            {mainLinks.map((l) => (
+            {visibleMainLinks.map((l) => (
               <Link
                 key={l.to}
                 to={l.to}
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
                   isActive(l.to)
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-slate-600 hover:bg-slate-100"
+                    ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300"
+                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
                 {l.icon}
@@ -375,18 +399,18 @@ const Header = ({ token, logOut }) => {
               </Link>
             ))}
 
-            {role !== "waiter" && (
+            {role !== "waiter" && visibleTanimGroups.length > 0 && (
               <div className="relative" ref={tanimRef}>
                 <button
                   onClick={() => setTanimDropShow((v) => !v)}
                   className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
                     allTanimItems.some((i) => isActive(i.to))
-                      ? "bg-indigo-50 text-indigo-700"
-                      : "text-slate-600 hover:bg-slate-100"
+                      ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300"
+                      : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                   }`}
                 >
                   <Settings size={17} />
-                  <span>Tənimlər</span>
+                  <span>{t("common.definitions")}</span>
                   <ChevronDown
                     size={14}
                     className={`transition-transform ${
@@ -395,8 +419,8 @@ const Header = ({ token, logOut }) => {
                   />
                 </button>
                 {tanimDropShow && (
-                  <div className="absolute left-0 mt-1.5 w-72 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-50 max-h-[70vh] overflow-y-auto">
-                    {tanimGroups.map((group) => {
+                  <div className="absolute left-0 mt-1.5 w-72 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-1.5 z-50 max-h-[70vh] overflow-y-auto">
+                    {visibleTanimGroups.map((group) => {
                       const isOpen = !!expandedGroups[group.id];
                       const hasActive = group.items.some((i) => isActive(i.to));
                       return (
@@ -452,7 +476,18 @@ const Header = ({ token, logOut }) => {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <div className="hidden md:flex items-center gap-2 text-slate-600">
+            {role !== "waiter" && <WebOrdersBell />}
+            {role !== "waiter" && <RestaurantNoticeBell />}
+            <button
+              type="button"
+              onClick={toggle}
+              className="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+              title={isDark ? t("common.lightMode") : t("common.darkMode")}
+              aria-label={isDark ? t("common.lightMode") : t("common.darkMode")}
+            >
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <div className="hidden md:flex items-center gap-2 text-slate-600 dark:text-slate-300">
               <NewOrders />
               <div className="hidden lg:block">
                 <DateTimeDisplay />
@@ -462,14 +497,14 @@ const Header = ({ token, logOut }) => {
             <div className="relative" ref={profRef}>
               <button
                 onClick={() => setProfDropShow((v) => !v)}
-                className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-full hover:bg-slate-100 transition"
+                className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white grid place-items-center text-xs font-semibold uppercase shadow">
                   {(meData.name || "U").charAt(0)}
                 </div>
                 <div className="hidden sm:flex flex-col text-left leading-tight">
                   <span className="text-xs font-semibold text-slate-800 max-w-[7rem] truncate">
-                    {meData.name || "İstifadəçi"}
+                    {meData.name || t("common.user")}
                   </span>
                   <span className="text-[10px] text-slate-500 capitalize">
                     {role || "user"}
@@ -478,8 +513,8 @@ const Header = ({ token, logOut }) => {
                 <ChevronDown size={14} className="hidden sm:block text-slate-400" />
               </button>
               {profDropShow && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-50">
-                  <div className="px-3 pb-2 mb-1 border-b border-slate-100">
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-2 z-50">
+                  <div className="px-3 pb-2 mb-1 border-b border-slate-100 dark:border-slate-700">
                     <div className="text-sm font-semibold text-slate-800 truncate">
                       {meData.name}
                     </div>
@@ -516,7 +551,7 @@ const Header = ({ token, logOut }) => {
                     onClick={handleLogout}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
                   >
-                    <LogOut size={15} /> Çıxış
+                    <LogOut size={15} /> {t("common.logout")}
                   </button>
                 </div>
               )}
@@ -531,7 +566,7 @@ const Header = ({ token, logOut }) => {
           onClick={() => setMobileMenuOpen(false)}
         >
           <aside
-            className="absolute left-0 top-0 bottom-0 w-[85%] max-w-[340px] bg-white shadow-2xl flex flex-col"
+            className="absolute left-0 top-0 bottom-0 w-[85%] max-w-[340px] bg-white dark:bg-slate-900 shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-4 h-14 flex items-center justify-between border-b border-slate-200">
@@ -577,12 +612,14 @@ const Header = ({ token, logOut }) => {
             </div>
 
             <div className="p-3 border-b border-slate-100 space-y-1.5">
+              {role !== "waiter" && <WebOrdersBell />}
+              {role !== "waiter" && <RestaurantNoticeBell />}
               <NewOrders />
               <DateTimeDisplay />
             </div>
 
             <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
-              {mainLinks.map((l) => (
+              {visibleMainLinks.map((l) => (
                 <Link
                   key={l.to}
                   to={l.to}
@@ -597,7 +634,7 @@ const Header = ({ token, logOut }) => {
                 </Link>
               ))}
 
-              {role !== "waiter" && (
+              {role !== "waiter" && visibleTanimGroups.length > 0 && (
                 <div>
                   <button
                     onClick={() => setMobileTanimOpen((v) => !v)}
@@ -605,7 +642,7 @@ const Header = ({ token, logOut }) => {
                     aria-expanded={mobileTanimOpen}
                   >
                     <Settings size={17} />
-                    <span>Tənimlər</span>
+                    <span>{t("common.definitions")}</span>
                     <ChevronDown
                       size={14}
                       className={`ml-auto transition-transform ${
@@ -621,7 +658,7 @@ const Header = ({ token, logOut }) => {
                     }`}
                   >
                     <div className="ml-2 pl-2 border-l-2 border-slate-100 space-y-1">
-                      {tanimGroups.map((group) => {
+                      {visibleTanimGroups.map((group) => {
                         const isOpen = !!expandedGroups[group.id];
                         const hasActive = group.items.some((i) => isActive(i.to));
                         return (
@@ -685,7 +722,7 @@ const Header = ({ token, logOut }) => {
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition"
               >
                 <LogOut size={16} />
-                Çıxış
+                {t("common.logout")}
               </button>
             </div>
           </aside>

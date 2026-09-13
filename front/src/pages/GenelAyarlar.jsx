@@ -2,14 +2,19 @@ import React, { useState, useEffect } from "react";
 import { pageTitle } from "../config/branding";
 import axios from "axios";
 import AccessDenied from "../components/AccessDenied";
-import { base_url, img_url } from "../api/index";
+import { base_url } from "../api/index";
+import { storageUrl } from "../utils/storageUrl";
 import { Helmet } from "react-helmet";
 import DontActiveAcount from "../components/DontActiveAcount";
 import UpdateRestaurantTimes from "../components/UpdateRestaurantTimes";
 import PasswordScreen from "../components/ScreenPassword";
 import ScreenPasswordPc from "../components/ScreenPasswordPc";
 import SecurityPasswordSettings from "../components/SecurityPasswordSettings";
-import { Settings, ShieldCheck, ChevronRight, Image, Printer, Palette } from "lucide-react";
+import LanguageSettings from "../components/LanguageSettings";
+import WebSettingsTab from "../components/WebSettingsTab";
+import AppearanceSettingsTab from "../components/AppearanceSettingsTab";
+import { useLanguage } from "../i18n/LanguageContext";
+import { Settings, ShieldCheck, Languages, ChevronRight, Image, Printer, Palette, Globe, Layout } from "lucide-react";
 import { toast } from "react-toastify";
 // Get auth headers from local storage
 const getAuthHeaders = () => {
@@ -24,6 +29,7 @@ const getAuthHeaders = () => {
 };
 
 const GenelAyarlar = () => {
+  const { t } = useLanguage();
   const [isOn, setIsOn] = useState(false);
   const [activeGroup, setActiveGroup] = useState(() => {
     try {
@@ -152,7 +158,7 @@ const GenelAyarlar = () => {
           },
         }
       );
-      toast.success("Parametrlər uğurla yeniləndi", {
+      toast.success(t("settings.saved"), {
         position: "top-center",
         autoClose: 1400,
       });
@@ -191,7 +197,7 @@ const GenelAyarlar = () => {
       <div className="min-h-[50vh] flex items-center justify-center p-8">
         <div className="flex flex-col items-center gap-3 text-slate-600">
           <div className="h-10 w-10 rounded-full border-2 border-indigo-200 border-t-indigo-600 animate-spin" />
-          <p className="text-sm font-medium">Yüklənir…</p>
+          <p className="text-sm font-medium">{t("common.loading")}</p>
         </div>
       </div>
     );
@@ -201,9 +207,7 @@ const GenelAyarlar = () => {
     "mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20";
   const labelClass = "block text-sm font-medium text-slate-700";
 
-  const replaceImage = (url) => {
-    return url ? `${img_url}/${url}` : ""; // Ensure URL is valid
-  };
+  const replaceImage = (url) => storageUrl(url) || "";
   return (
     <>
       <PasswordScreen />
@@ -221,25 +225,43 @@ const GenelAyarlar = () => {
             <aside className="md:w-64 shrink-0 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50/60">
               <div className="px-4 py-4 border-b border-slate-200/70">
                 <h3 className="text-base font-bold text-slate-800">
-                  Ümumi Nizamlamalar
+                  {t("settings.title")}
                 </h3>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Kateqoriya seçin
+                  {t("settings.selectCategory")}
                 </p>
               </div>
               <nav className="p-2 flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
                 {[
                   {
                     key: "ayarlar",
-                    label: "Ayarlar",
-                    desc: "Restoran, loqo, printer, rənglər",
+                    label: t("settings.tabGeneral"),
+                    desc: t("settings.tabGeneralDesc"),
                     icon: Settings,
                   },
                   {
                     key: "sifre",
-                    label: "Şifrə Nizamlaması",
-                    desc: "Bölmə-əsaslı şifrələr",
+                    label: t("settings.tabPassword"),
+                    desc: t("settings.tabPasswordDesc"),
                     icon: ShieldCheck,
+                  },
+                  {
+                    key: "dil",
+                    label: t("settings.tabLanguage"),
+                    desc: t("settings.tabLanguageDesc"),
+                    icon: Languages,
+                  },
+                  {
+                    key: "web",
+                    label: t("settings.tabWeb"),
+                    desc: t("settings.tabWebDesc"),
+                    icon: Globe,
+                  },
+                  {
+                    key: "gorunum",
+                    label: t("settings.tabAppearance"),
+                    desc: t("settings.tabAppearanceDesc"),
+                    icon: Layout,
                   },
                 ].map((g) => {
                   const Icon = g.icon;
@@ -297,15 +319,24 @@ const GenelAyarlar = () => {
                 <div className="p-4 sm:p-6">
                   <SecurityPasswordSettings />
                 </div>
+              ) : activeGroup === "dil" ? (
+                <div className="p-4 sm:p-6">
+                  <LanguageSettings />
+                </div>
+              ) : activeGroup === "web" ? (
+                <WebSettingsTab />
+              ) : activeGroup === "gorunum" ? (
+                <div className="p-4 sm:p-6">
+                  <AppearanceSettingsTab />
+                </div>
               ) : (
                 <div className="p-4 sm:p-6 space-y-6">
                   <div>
                     <h2 className="text-lg sm:text-xl font-bold text-slate-800">
-                      Ayarlar
+                      {t("settings.tabGeneral")}
                     </h2>
                     <p className="text-xs sm:text-sm text-slate-500 mt-0.5 max-w-2xl">
-                      Restoran profili, printerlər, masa rəngləri və iş saatları —
-                      mobil və masaüstü üçün uyğunlaşdırılmış tərtibat.
+                      {t("settings.generalIntro")}
                     </p>
                   </div>
 
@@ -316,7 +347,7 @@ const GenelAyarlar = () => {
                           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-200 shadow-sm">
                             <Image size={16} className="text-indigo-600" />
                           </span>
-                          Profil və loqo
+                          {t("settings.profileSection")}
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                           <div className="flex justify-center sm:justify-start shrink-0">
@@ -331,7 +362,7 @@ const GenelAyarlar = () => {
                           <div className="flex-1 min-w-0 space-y-4">
                             <div>
                               <label className={labelClass}>
-                                Logo (.jpg, .png) — istəyə bağlı
+                                {t("settings.profileLogo")}
                               </label>
                               <input
                                 className={`${inputClass} file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700`}
@@ -348,7 +379,7 @@ const GenelAyarlar = () => {
                             </div>
                             <div>
                               <label className={labelClass}>
-                                Kafe / restoran adı
+                                {t("settings.restaurantName")}
                               </label>
                               <input
                                 className={inputClass}
@@ -365,7 +396,7 @@ const GenelAyarlar = () => {
                             </div>
                             <div>
                               <label className={labelClass}>
-                                Fiş altı mesajı
+                                {t("settings.receiptFooter")}
                               </label>
                               <textarea
                                 className={`${inputClass} min-h-[88px] resize-y`}
@@ -391,7 +422,7 @@ const GenelAyarlar = () => {
                                   className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                 />
                                 <span className="text-sm text-slate-700">
-                                  QR menyunu aktiv et
+                                  {t("settings.qrEnable")}
                                 </span>
                               </label>
                               <label className="flex items-start gap-3 cursor-pointer">
@@ -404,7 +435,7 @@ const GenelAyarlar = () => {
                                   className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                 />
                                 <span className="text-sm text-slate-700">
-                                  QR menyudan sifariş qəbul et
+                                  {t("settings.qrOrders")}
                                 </span>
                               </label>
                             </div>
@@ -417,11 +448,11 @@ const GenelAyarlar = () => {
                           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-200 shadow-sm">
                             <Printer size={16} className="text-indigo-600" />
                           </span>
-                          Printerlər
+                          {t("settings.printers")}
                         </div>
                         <div className="space-y-4">
                           <div>
-                            <label className={labelClass}>Ana / hesab yazıcı</label>
+                            <label className={labelClass}>{t("settings.mainPrinter")}</label>
                             <input
                               className={inputClass}
                               type="text"
@@ -436,7 +467,7 @@ const GenelAyarlar = () => {
                             )}
                           </div>
                           <div>
-                            <label className={labelClass}>Mətbəx yazıcı</label>
+                            <label className={labelClass}>{t("settings.kitchenPrinter")}</label>
                             <input
                               className={inputClass}
                               type="text"
@@ -451,7 +482,7 @@ const GenelAyarlar = () => {
                             )}
                           </div>
                           <div>
-                            <label className={labelClass}>Bar yazıcı</label>
+                            <label className={labelClass}>{t("settings.barPrinter")}</label>
                             <input
                               className={inputClass}
                               type="text"
@@ -475,11 +506,11 @@ const GenelAyarlar = () => {
                           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-200 shadow-sm">
                             <Palette size={16} className="text-indigo-600" />
                           </span>
-                          Masa rəngləri və PS Club
+                          {t("settings.tableColors")}
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <label className={labelClass}>Boş masa</label>
+                            <label className={labelClass}>{t("settings.emptyTable")}</label>
                             <div className="mt-1.5 flex items-center gap-3">
                               <input
                                 className="h-11 w-full max-w-[120px] cursor-pointer rounded-lg border border-slate-200 bg-white p-1 shadow-sm"
@@ -499,7 +530,7 @@ const GenelAyarlar = () => {
                             )}
                           </div>
                           <div>
-                            <label className={labelClass}>Dolu masa</label>
+                            <label className={labelClass}>{t("settings.bookedTable")}</label>
                             <div className="mt-1.5 flex items-center gap-3">
                               <input
                                 className="h-11 w-full max-w-[120px] cursor-pointer rounded-lg border border-slate-200 bg-white p-1 shadow-sm"
@@ -520,7 +551,7 @@ const GenelAyarlar = () => {
                           </div>
                         </div>
                         <div>
-                          <span className={labelClass}>PS Club</span>
+                          <span className={labelClass}>{t("settings.psClub")}</span>
                           <button
                             type="button"
                             onClick={() => {
@@ -551,7 +582,7 @@ const GenelAyarlar = () => {
                                 isOn ? "text-emerald-700" : "text-slate-500"
                               }`}
                             >
-                              {isOn ? "Aktiv" : "Söndürülüb"}
+                              {isOn ? t("settings.psActive") : t("settings.psOff")}
                             </span>
                           </button>
                         </div>
@@ -565,7 +596,7 @@ const GenelAyarlar = () => {
                         type="submit"
                         className="w-full sm:w-auto min-h-[44px] rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition"
                       >
-                        Dəyişiklikləri saxla
+                        {t("settings.saveChanges")}
                       </button>
                     </div>
                   </form>

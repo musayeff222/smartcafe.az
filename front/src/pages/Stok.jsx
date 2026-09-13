@@ -11,6 +11,20 @@ import AccessDenied from "../components/AccessDenied";
 import { base_url } from "../api/index";
 import { Helmet } from "react-helmet";
 import ScreenPassword from "../components/ScreenPassword";
+import {
+  Package,
+  Plus,
+  ChevronLeft,
+  FolderPlus,
+  FileSpreadsheet,
+  FileText,
+  RotateCcw,
+  Eye,
+  Layers,
+  Pencil,
+  Download,
+} from "lucide-react";
+import WoltImportPanel from "../components/WoltImportPanel";
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
@@ -22,6 +36,8 @@ const getAuthHeaders = () => {
     },
   };
 };
+
+const Box = "div";
 
 function Stok() {
   const [selectedCat, setSelectedCat] = useState(0);
@@ -57,6 +73,8 @@ function Stok() {
 
   const [accessDenied, setAccessDenied] = useState(false);
   const [ActiveUser, setActiveUser] = useState(false);
+  const [showWoltImport, setShowWoltImport] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   console.log("ActiveUser", ActiveUser);
 
   useEffect(() => {
@@ -100,7 +118,7 @@ function Stok() {
 
     fetchGroups();
     fetchItems();
-  }, [showPopup, addStok]);
+  }, [showPopup, addStok, refreshKey]);
 
   const handleGroupClick = (groupId) => {
     setSelectedCat(groupId);
@@ -256,233 +274,210 @@ const handleResetInventory = async () => {
     <>
       <ScreenPassword category="anbar" />
       <Helmet>
-        <title>{pageTitle('Anbar')}</title>
-        <meta
-          name="description"
-          content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi "
-        />
+        <title>{pageTitle("Anbar")}</title>
+        <meta name="description" content="Restoran proqramı | Kafe - Restoran idarə etmə sistemi " />
       </Helmet>
-      <section className="p-4">
-        <div className="rounded-t border flex flex-col md:flex-row items-center justify-between bg-[#fafbfc] py-2 px-3">
-          <h4>
-            <strong>Anbar Mal əlavə edilməsi</strong>
-          </h4>
-          <button
-            onClick={() => setAddStok(!addStok)}
-            className={`ml-auto py-2 px-4 rounded text-white ${
-              addStok ? "bg-gray-700" : "bg-green-600"
-            }`}>
-            {addStok ? (
+      <section className="p-4 max-w-[1400px] mx-auto">
+        <Box className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <Box className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+            <Box className="flex items-center gap-3">
+              <Box className="w-10 h-10 rounded-xl bg-white/20 grid place-items-center">
+                <Package size={22} />
+              </Box>
+              <Box>
+                <h1 className="text-lg font-bold">Anbar</h1>
+                <p className="text-xs text-indigo-100">Məhsul və stok idarəetməsi</p>
+              </Box>
+            </Box>
+            <button
+              type="button"
+              onClick={() => setAddStok(!addStok)}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                addStok ? "bg-white/20 hover:bg-white/30" : "bg-white text-indigo-700 hover:bg-indigo-50"
+              }`}>
+              {addStok ? <><ChevronLeft size={16} /> Geri</> : <><Plus size={16} /> Yeni stok</>}
+            </button>
+          </Box>
+          <Box className="p-4 flex flex-col lg:flex-row gap-4">
+            {!addStok ? (
               <>
-                {" "}
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="14"
-                  height="14"
-                  fill="currentColor"
-                  className="bi bi-chevron-double-left"
-                  viewBox="0 0 16 16">
-                  {" "}
-                  <path
-                    fillRule="evenodd"
-                    d="M8.354 1.646a.5.5 0 0 1 0 .708L2.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"
-                  />{" "}
-                  <path
-                    fillRule="evenodd"
-                    d="M12.354 1.646a.5.5 0 0 1 0 .708L6.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"
-                  />{" "}
-                </svg>
-                Geri{" "}
+                <Box className="w-full lg:w-64 shrink-0">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2 px-1">Kateqoriyalar</p>
+                  <ul className="list-none space-y-1">
+                    <li onClick={() => setShowPopup(true)} className="stok-li text-emerald-700 justify-center bg-emerald-50 border-emerald-200 hover:border-emerald-400">
+                      <FolderPlus size={16} /> Qrup əlavə et
+                    </li>
+                    <li onClick={() => setSelectedCat(0)} className={`stok-li ${selectedCat === 0 ? "text-indigo-700 bg-indigo-50 border-indigo-300 ring-1 ring-indigo-200" : "bg-white"}`}>
+                      <Layers size={16} className="opacity-60" /> Hamısı
+                    </li>
+                    {groups.map((group) => (
+                      <li
+                        key={group.id}
+                        onClick={() => handleGroupClick(group.id)}
+                        className={`stok-li ${selectedCat === group.id ? "text-indigo-700 bg-indigo-50 border-indigo-300 ring-1 ring-indigo-200" : "bg-white"}`}>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setShowPopup(true); setEditGroupid(group.id); }} className="p-1 rounded-md hover:bg-slate-100 text-slate-400">
+                          <Pencil size={14} />
+                        </button>
+                        <span className="truncate">{group.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Box>
+                <Box className="flex-1 min-w-0">
+                  <Box className="flex flex-wrap items-center gap-2 mb-4">
+                    <span className="text-sm text-slate-600 bg-slate-100 rounded-lg px-3 py-1.5">
+                      <strong className="text-slate-800">{filteredItems.length}</strong> məhsul
+                    </span>
+                    <button type="button" onClick={exportToExcel} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                      <FileSpreadsheet size={14} /> Excel
+                    </button>
+                    <button type="button" onClick={exportToPDF} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                      <FileText size={14} /> PDF
+                    </button>
+                    <button type="button" onClick={() => setShowWoltImport(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+                      <Download size={14} /> Wolt import
+                    </button>
+                    <button type="button" onClick={handleResetInventory} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 ml-auto">
+                      <RotateCcw size={14} /> Anbarı sıfırla
+                    </button>
+                  </Box>
+                  <Box className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500">
+                          <th className="p-3 font-semibold">Məhsul</th>
+                          <th className="p-3 font-semibold text-right">Stok</th>
+                          <th className="p-3 font-semibold text-right">Qiymət</th>
+                          <th className="p-3 font-semibold text-center">QR</th>
+                          <th className="p-3 font-semibold">Qrup</th>
+                          <th className="p-3 font-semibold text-center w-24"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredItems?.map((item) => {
+                          const low = item.alert_critical && item.amount < item.critical_amount;
+                          const variants = item.details?.length || 0;
+                          return (
+                            <tr key={item.id} className={`hover:bg-slate-50/80 transition ${low ? "bg-red-50" : "bg-white"}`}>
+                              <td className="p-3">
+                                <span className="font-medium text-slate-800">{item.name}</span>
+                                {variants > 0 && (
+                                  <span
+                                    className="ml-2 inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700"
+                                    title={`${variants} fərqli satış qiyməti (ölçü/vahid seçimi)`}>
+                                    {variants} qiymət
+                                  </span>
+                                )}
+                                {low && <span className="block text-[10px] text-red-600 font-medium mt-0.5">Kritik stok</span>}
+                              </td>
+                              <td className={`p-3 text-right font-medium ${low ? "text-red-600" : "text-slate-700"}`}>{item.amount}</td>
+                              <td className="p-3 text-right text-slate-700">
+                                {variants > 0 ? (
+                                  <span className="text-indigo-600 text-xs font-medium">Çoxlu qiymət</span>
+                                ) : (
+                                  <>{Number(item.price).toFixed(2)} ₼</>
+                                )}
+                              </td>
+                              <td className="p-3 text-center">
+                                <input type="checkbox" checked={item.show_on_qr} onChange={() => handleCheckboxChange(item)} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                              </td>
+                              <td className="p-3 text-slate-600">{groups.find((g) => g.id === item.stock_group_id)?.name || "—"}</td>
+                              <td className="p-3 text-center">
+                                <button type="button" onClick={() => handleDetailsClick(item)} className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">
+                                  <Eye size={14} /> Detay
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {filteredItems.length === 0 && (
+                      <p className="p-8 text-center text-sm text-slate-500">Bu qrupda məhsul yoxdur</p>
+                    )}
+                  </Box>
+                </Box>
               </>
             ) : (
-              <>
-                <i className="fa-solid fa-plus"></i> Yeni stok əlavə edin
-              </>
+              <Box className="w-full">
+                <AddStok setAddStok={setAddStok} item={detailsItem} onClose={() => setAddStok(false)} />
+              </Box>
             )}
-          </button>
-        </div>
-        <div className="border border-t-0 bg-white py-3 px-3 flex flex-col md:flex-row gap-4">
-          {!addStok ? (
-            <>
-              <ul className="list-none w-full md:w-1/4">
-                <li
-                  onClick={() => setShowPopup(true)}
-                  className="text-green-600 stok-li justify-center bg-green-50 hover:border-green-600">
-                  <i className="fa-solid fa-plus"></i> Grup/Kategori/Menü əlavə edin
-                </li>
-                <li
-                  onClick={() => setSelectedCat(0)}
-                  className={`stok-li ${
-                    selectedCat === 0 ? "text-blue-500 bg-blue-50" : "bg-white"
-                  }`}>
-                  Hamısı
-                </li>
-                {groups.map((group) => (
-                  <li
-                    key={group.id}
-                    onClick={() => handleGroupClick(group.id)}
-                    className={`stok-li ${
-                      selectedCat === group.id ? "text-blue-500 bg-blue-50" : "bg-white"
-                    }`}>
-                    <button
-                      onClick={() => (setShowPopup(true), setEditGroupid(group.id))}
-                      className="mr-2">
-                      <i className="fa-solid fa-pen"></i>
-                    </button>
-                    {group.name}
-                  </li>
-                ))}
-              </ul>
-              <div className="w-full md:w-3/4">
-                <div className="flex flex-col md:flex-row items-center gap-3 mb-3">
-                  <p className="my-2">Siyahida toplam {filteredItems.length} qeyd vardir.</p>
-                  <button
-                    className="rounded py-2 px-4 bg-zinc-600 text-white"
-                    onClick={exportToExcel}>
-                    EXCEL
-                  </button>
-                  <button
-                    className="rounded py-2 px-4 bg-zinc-600 text-white"
-                    onClick={exportToPDF}>
-                    PDF
-                  </button>
-                   <button
-                    className="rounded py-2 px-4 bg-red-900 text-white"
-                    onClick={handleResetInventory}>
-                    Anbarı Sıfırla
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border rounded bg-[#fafbfc]">
-                    <thead className="border-b border-gray-400 bg-gray-100">
-                      <tr className="border-b border-gray-300">
-                        <th className="p-3 font-semibold">Adı</th>
-                        <th className="p-3 font-semibold text-right">Stok</th>
-                        <th className="p-3 font-semibold text-right">Satış qiyməti</th>
-                        <th className="p-3 font-semibold">Qr Menü</th>
-                        <th className="p-3 font-semibold">Grup</th>
-                        <th className="p-3 font-semibold">Detay</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredItems?.map((item) => (
-                        <tr
-                          key={item.id}
-                          className={
-                            item.alert_critical && item.amount < item.critical_amount
-                              ? "bg-red-200 animate-pulse"
-                              : ""
-                          }>
-                          <td className="p-3">{item.name}</td>
-                          <td className="p-3 text-right">{item.amount}</td>
-                          <td className="p-3 text-right">{item.price} ₼</td>
-                          <td className="p-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={item.show_on_qr}
-                              onChange={() => handleCheckboxChange(item)}
-                            />
-                          </td>
-                          <td className="p-3 text-center">
-                            {groups.find((group) => group.id === item.stock_group_id)?.name}
-                          </td>
-                          <td className="p-3 text-center">
-                            <button
-                              className="rounded px-3 py-1 bg-green-600 text-white"
-                              onClick={() => handleDetailsClick(item)}>
-                              Detay
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          ) : (
-            <AddStok setAddStok={setAddStok} item={detailsItem} onClose={() => setAddStok(false)} />
-          )}
-        </div>
+          </Box>
+        </Box>
       </section>
       {showPopup && (
-        <StokGruplari
-          setShowPopup={setShowPopup}
-          editGroupid={editGroupid}
-          seteditGroupid={setEditGroupid}
-          onAddGroup={(newGroup) => setGroups([...groups, newGroup])}
-        />
+        <StokGruplari setShowPopup={setShowPopup} editGroupid={editGroupid} seteditGroupid={setEditGroupid} onAddGroup={(newGroup) => setGroups([...groups, newGroup])} />
       )}
       {showDetails && detailsItem && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full md:w-1/2 lg:w-1/3">
-            <h3 className="text-lg font-semibold mb-4">Stok Detayları</h3>
-            <p>
-              <strong>Adı:</strong> {detailsItem.name}
-            </p>
-            <p>
-              <strong>Stok:</strong> {detailsItem.amount}
-            </p>
-            <p>
-              <strong>Satış qiyməti:</strong> {detailsItem.price} ₼
-            </p>
-            <p>
-              <strong>Qr Menü:</strong> {detailsItem.show_on_qr ? "Evet" : "Hayır"}
-            </p>
-            <p>
-              <strong>Grup:</strong>{" "}
-              {groups.find((group) => group.id === detailsItem.stock_group_id)?.name}
-            </p>
-            <div className="  w-full md:w-1/2 lg:w-1/3">
-              {/* Mevcut içerik... */}
-
-              <p className="mt-4 ">
-                <strong>Xammallar:</strong>
-              </p>
-              {rawMaterials.length > 0 ? (
-                selectedRawMaterials.map((material) => (
-                  <div key={material.id} className="mt-2 flex gap-3">
-                    <span className="font-medium">{material.name}</span> -
-                    <h1 className=" flex w-64">Miqdar:</h1>
-                    <h1>
-                      {" "}
-                      {material.amount} {material.quantity || "ədəd"}
-                    </h1>
-                  </div>
-                ))
-              ) : (
-                <div className="text-gray-500 w-72">Heç bir xammal tapılmadı.</div>
+        <Box className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowDetails(false)}>
+          <Box className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <Box className="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4 text-white">
+              <p className="text-[10px] uppercase tracking-wider text-indigo-100 font-semibold">Məhsul detayı</p>
+              <h3 className="text-xl font-bold truncate">{detailsItem.name}</h3>
+            </Box>
+            <Box className="p-5 space-y-3 text-sm">
+              <Box className="grid grid-cols-2 gap-3">
+                <Box className="rounded-xl bg-slate-50 p-3 border border-slate-100">
+                  <p className="text-[10px] uppercase text-slate-400 font-semibold">Stok</p>
+                  <p className="text-lg font-bold text-slate-800">{detailsItem.amount}</p>
+                </Box>
+                <Box className="rounded-xl bg-slate-50 p-3 border border-slate-100">
+                  <p className="text-[10px] uppercase text-slate-400 font-semibold">Satış qiyməti</p>
+                  <p className="text-lg font-bold text-slate-800">{Number(detailsItem.price).toFixed(2)} ₼</p>
+                </Box>
+                {detailsItem.cost_price != null && detailsItem.cost_price !== "" && (
+                  <Box className="rounded-xl bg-slate-50 p-3 border border-slate-100 col-span-2">
+                    <p className="text-[10px] uppercase text-slate-400 font-semibold">Maya dəyəri</p>
+                    <p className="text-lg font-bold text-slate-800">{Number(detailsItem.cost_price).toFixed(2)} ₼</p>
+                  </Box>
+                )}
+              </Box>
+              {detailsItem.details?.length > 0 && (
+                <Box>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">Variantlar</p>
+                  <Box className="space-y-1.5">
+                    {detailsItem.details.map((d) => (
+                      <Box key={d.id} className="flex justify-between rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-2">
+                        <span className="font-medium text-slate-700">{d.count} {d.unit}</span>
+                        <span className="font-bold text-indigo-700">{Number(d.price).toFixed(2)} ₼</span>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
               )}
-            </div>
-            <div className="flex flex-col md:flex-row gap-4 mt-4">
-              <button
-                className="bg-red-500 text-white px-4 py-2 rounded"
-                onClick={handleDeleteItem}>
-                Sil
-              </button>
-              <button
-                className="bg-blue-600 text-white px-4 py-2 rounded"
-                onClick={() => handleEditItem(detailsItem)}>
-                Yeniləyin
-              </button>
-              <button
-                className="bg-gray-500 text-white px-4 py-2 rounded"
-                onClick={() => setShowDetails(false)}>
-                Bağla
-              </button>
-            </div>
-          </div>
-        </div>
+              <p className="text-slate-600"><span className="font-semibold text-slate-800">QR:</span> {detailsItem.show_on_qr ? "Bəli" : "Xeyr"}</p>
+              <p className="text-slate-600"><span className="font-semibold text-slate-800">Qrup:</span> {groups.find((g) => g.id === detailsItem.stock_group_id)?.name || "—"}</p>
+              <Box>
+                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">Xammallar</p>
+                {rawMaterials.length > 0 ? (
+                  selectedRawMaterials.map((material) => (
+                    <Box key={material.id} className="flex justify-between text-slate-700 py-1 border-b border-slate-50 last:border-0">
+                      <span>{material.name}</span>
+                      <span className="text-slate-500">{material.amount} {material.quantity || "ədəd"}</span>
+                    </Box>
+                  ))
+                ) : (
+                  <p className="text-slate-400 text-xs">Xammal yoxdur</p>
+                )}
+              </Box>
+            </Box>
+            <Box className="flex gap-2 p-4 border-t border-slate-100 bg-slate-50/50">
+              <button type="button" onClick={handleDeleteItem} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">Sil</button>
+              <button type="button" onClick={() => handleEditItem(detailsItem)} className="flex-1 rounded-xl bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Yenilə</button>
+              <button type="button" onClick={() => setShowDetails(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-white">Bağla</button>
+            </Box>
+          </Box>
+        </Box>
       )}
       {showEditPopup && editItem && (
-        <EditStok
-          item={editItem}
-          onClose={() => setShowEditPopup(false)}
-          onUpdate={handleUpdateItem}
-          rawMaterials={rawMaterials}
-          detailsItem={detailsItem}
-        />
+        <EditStok item={editItem} onClose={() => setShowEditPopup(false)} onUpdate={handleUpdateItem} rawMaterials={rawMaterials} />
       )}
+      <WoltImportPanel
+        open={showWoltImport}
+        onClose={() => setShowWoltImport(false)}
+        onImported={() => setRefreshKey((k) => k + 1)}
+      />
     </>
   );
 }

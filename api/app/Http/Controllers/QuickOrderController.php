@@ -14,6 +14,37 @@ use Illuminate\Support\Facades\DB;
 
 class QuickOrderController extends Controller
 {
+    private function computeStockLineTotal($stock): float
+    {
+        $qty = (int) $stock->pivot->quantity;
+
+        if ($stock->pivot->detail_id) {
+            $detail = StockDetail::find($stock->pivot->detail_id);
+            if ($detail) {
+                return $qty > 1
+                    ? (float) $detail->price * $qty
+                    : (float) $detail->price;
+            }
+        }
+
+        return (float) $stock->price * $qty;
+    }
+
+    private function computeOrderTotal(Order $order): float
+    {
+        $order->loadMissing('stocks');
+
+        return round($order->stocks->sum(fn ($stock) => $this->computeStockLineTotal($stock)), 2);
+    }
+
+    private function attachOrderTotals(QuickOrder $quickOrder): QuickOrder
+    {
+        if ($quickOrder->order) {
+            $quickOrder->order->total_price = $this->computeOrderTotal($quickOrder->order);
+        }
+
+        return $quickOrder;
+    }
 
     public function index(Request $request)
     {
@@ -26,15 +57,58 @@ class QuickOrderController extends Controller
             ->with(['order' => function ($query) {
                 $query
                     ->select('id', 'status')
-                    ->withSum('stocks as total_price', DB::raw('stocks.price * order_stock.quantity'))
+                    ->with('stocks')
                     ->withSum('prepayments as total_prepayment', 'amount');
             }])
             ->with(['courier' => function ($query) {
                 $query->select('id', 'name');  // Select only 'id' and 'name' for courier
             }])
-            ->get();
+            ->get()
+            ->each(fn (QuickOrder $quickOrder) => $this->attachOrderTotals($quickOrder));
 
         return response()->json($quickOrders);
+    }
+
+    /** Web menyudan gələn sifarişlər (Sifarişlər paneli / header ikonu) */
+    public function webInbox(Request $request)
+    {
+        $restaurantId = $request->user()->restaurant_id;
+
+        $orders = QuickOrder::where('restaurant_id', $restaurantId)
+            ->where('note', 'like', '%[Web sifariş]%')
+            ->whereHas('order', function ($query) {
+                $query->where('status', 'approved');
+            })
+            ->with(['order' => function ($query) {
+                $query
+                    ->select('id', 'status')
+                    ->with('stocks')
+                    ->withSum('prepayments as total_prepayment', 'amount');
+            }])
+            ->with(['courier:id,name'])
+            ->orderByDesc('created_at')
+            ->limit(30)
+            ->get()
+            ->each(fn (QuickOrder $quickOrder) => $this->attachOrderTotals($quickOrder));
+
+        return response()->json($orders);
+    }
+
+    /** Web sifarişi qəbul edildi — bildiriş siyahısından çıxar */
+    public function acknowledgeWeb(Request $request, $id)
+    {
+        $restaurantId = $request->user()->restaurant_id;
+        $quickOrder = QuickOrder::where('restaurant_id', $restaurantId)->findOrFail($id);
+
+        if (!str_contains($quickOrder->note ?? '', '[Web sifariş]')) {
+            return response()->json(['message' => 'Bu web sifariş deyil.'], 400);
+        }
+
+        $quickOrder->update([
+            'note' => str_replace('[Web sifariş]', '[Web qəbul edildi]', $quickOrder->note),
+        ]);
+
+        return response()->json(['message' => 'Sifariş qəbul edildi.', 'id' => $quickOrder->id]);
     }
 
     //
@@ -87,9 +161,9 @@ class QuickOrderController extends Controller
             $quickOrder = QuickOrder::create([
                 'restaurant_id' => $restaurantId,
                 'order_id' => $order->id,
-                'name' => $request->name,
-                'phone' => $request->phone,
-                'address' => $request->address,
+                'name' => $request->input('name') ?: 'Qonaq',
+                'phone' => $request->input('phone') ?: '-',
+                'address' => $request->input('address') ?: '-',
                 'note' => $request->note,
                 'courier_id' => $request->courier_id,  // Assign courier if provided
             ]);
@@ -123,38 +197,33 @@ class QuickOrderController extends Controller
 
         $response = [
             'id' => $quickOrder->id,
+            'name' => $quickOrder->name,
+            'phone' => $quickOrder->phone,
+            'address' => $quickOrder->address,
+            'note' => $quickOrder->note,
+            'promo_code' => $quickOrder->promo_code,
+            'promo_discount' => (float) ($quickOrder->promo_discount ?? 0),
+            'created_at' => $quickOrder->created_at,
             'order' => [
                 'id' => $quickOrder->order->id,
                 'status' => $quickOrder->order->status,
                 'stocks' => $quickOrder->order->stocks->map(function ($stock) {
                     $detail = $stock->pivot->detail_id
-                        ? StockDetail::find($stock->pivot->detail_id)->only(['id', 'price', 'unit', 'count'])
+                        ? StockDetail::find($stock->pivot->detail_id)?->only(['id', 'price', 'unit', 'count'])
                         : null;
-
-                    $price = $detail
-                        ? ($stock->pivot->quantity > 1 ? $detail['price'] * $stock->pivot->quantity : $detail['price'])
-                        : $stock->price * $stock->pivot->quantity;
 
                     return [
                         'pivot_id' => $stock->pivot->id,
                         'id' => $stock->id,
                         'name' => $stock->name,
                         'quantity' => $stock->pivot->quantity,
-                        'price' => $price,
+                        'price' => $this->computeStockLineTotal($stock),
                         'detail' => $detail,
                     ];
                 }),
                 'prepayments' => $quickOrder->order->prepayments,
                 'total_prepayment' => $quickOrder->order->prepayments->sum('amount'),
-                'total_price' => $quickOrder->order->stocks->sum(function ($stock) {
-                    $detail = $stock->pivot->detail_id
-                        ? StockDetail::find($stock->pivot->detail_id)->only(['price', 'unit', 'count'])
-                        : null;
-
-                    return $detail
-                        ? ($stock->pivot->quantity > 1 ? $detail['price'] * $stock->pivot->quantity : $detail['price'])
-                        : $stock->price * $stock->pivot->quantity;
-                }),
+                'total_price' => $this->computeOrderTotal($quickOrder->order),
             ],
             'courier' => $quickOrder->courier ? [
                 'id' => $quickOrder->courier->id,
@@ -193,9 +262,9 @@ class QuickOrderController extends Controller
         try {
             // Update the QuickOrder details
             $quickOrder->update([
-                'name' => $request->name,
-                'phone' => $request->phone,
-                'address' => $request->address,
+                'name' => $request->input('name') ?: 'Qonaq',
+                'phone' => $request->input('phone') ?: '-',
+                'address' => $request->input('address') ?: '-',
                 'note' => $request->note,
                 'courier_id' => $request->courier_id,  // Update courier if provided
             ]);

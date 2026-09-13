@@ -9,6 +9,10 @@ class Stock extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'cost_price' => 'decimal:2',
+    ];
+
     protected $fillable = [
         'restaurant_id',
         'stock_group_id',
@@ -16,6 +20,7 @@ class Stock extends Model
         'image',
         'show_on_qr',
         'price',
+        'cost_price',
         'amount',
         'critical_amount',
         'alert_critical',

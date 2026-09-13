@@ -7,7 +7,7 @@ return [
     | Cross-Origin Resource Sharing (CORS) Configuration
     |--------------------------------------------------------------------------
     | İzinli origin listesi .env -> CORS_ALLOWED_ORIGINS değişkeninden okunur.
-    | Örnek: CORS_ALLOWED_ORIGINS="https://smartcafe.az,https://test.smartcafe.az"
+    | Örnek: https və http login (SSL quraşdırılmamış vəziyyətdə preflight üçün hər ikisi).
     */
 
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
@@ -16,7 +16,10 @@ return [
 
     'allowed_origins' => array_values(array_filter(array_map(
         'trim',
-        explode(',', env('CORS_ALLOWED_ORIGINS', 'https://smartcafe.az,http://smartcafe.az'))
+        explode(',', env(
+            'CORS_ALLOWED_ORIGINS',
+            'https://smartcafe.az,https://www.smartcafe.az,http://smartcafe.az,http://www.smartcafe.az,https://login.smartcafe.az,https://www.login.smartcafe.az,http://login.smartcafe.az,http://www.login.smartcafe.az,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:5500,http://127.0.0.1:5500'
+        ))
     ))),
 
     'allowed_origins_patterns' => array_values(array_filter(array_map(
