@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { pageTitle, APP_NAME } from "../config/branding";
 import { useLanguage } from "../i18n/LanguageContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import axios from "axios";
 import { base_url } from "../api/index";
 import { Helmet } from "react-helmet";
@@ -254,15 +254,23 @@ const Login = () => {
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2 select-none cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={remember}
-                    onChange={(e) => setRemember(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="text-sm text-slate-600">{t("login.remember")}</span>
-                </label>
+                <div className="flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 select-none cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={remember}
+                      onChange={(e) => setRemember(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-slate-600">{t("login.remember")}</span>
+                  </label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                  >
+                    {t("login.forgotPassword")}
+                  </Link>
+                </div>
 
                 <button
                   type="submit"

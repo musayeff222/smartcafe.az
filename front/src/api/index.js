@@ -19,6 +19,16 @@ export const img_url =
 export const domain_url =
   domainFromEnv || (isProd ? 'https://login.smartcafe.az' : 'http://localhost:3000');
 
+/** Resolve a stored media path (website/x.png, /storage/..., or full URL) to an absolute URL. */
+export const mediaUrl = (path) => {
+  if (!path) return "";
+  const raw = String(path).trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
+  const clean = raw.replace(/^\/storage\/?/i, "").replace(/^\//, "");
+  return `${img_url}/${clean}`;
+};
+
 /** Bearer token ile JSON istekleri (çoğu axios çağrısı bunu kullanır). */
 export const getAuthHeaders = () => {
   const token = localStorage.getItem('token');

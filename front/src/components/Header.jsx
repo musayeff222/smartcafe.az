@@ -37,6 +37,7 @@ import {
   Layers,
   Database,
   Loader2,
+  Bot,
 } from "lucide-react";
 
 const getAuthHeaders = () => {
@@ -60,7 +61,7 @@ const Header = ({ token, logOut }) => {
   const [mobileTanimOpen, setMobileTanimOpen] = useState(false);
   const [meData, setMeData] = useState({});
   const [role, setRole] = useState(localStorage.getItem("role") || "");
-  const [formData, setFormData] = useState({ logo: null, name: "" });
+  const [formData, setFormData] = useState({ logo: null, name: "", telegram_bot_available: false });
   const [backupRunning, setBackupRunning] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(() => {
     try {
@@ -150,6 +151,7 @@ const Header = ({ token, logOut }) => {
       setFormData({
         logo: response.data.logo || null,
         name: response.data.name || "",
+        telegram_bot_available: !!response.data.telegram_bot_available,
       });
     } catch (error) {
       console.error("Error fetching settings", error);
@@ -326,6 +328,9 @@ const Header = ({ token, logOut }) => {
       items: [
         { to: "/masa-tanimlari", label: t("nav.tableSettings"), icon: <Table2 size={15} /> },
         { to: "/genel-ayarlar", label: t("nav.generalSettings"), icon: <Settings size={15} /> },
+        ...(formData.telegram_bot_available
+          ? [{ to: "/genel-ayarlar?group=telegram", label: t("nav.telegramBot"), icon: <Bot size={15} /> }]
+          : []),
       ],
     },
     {

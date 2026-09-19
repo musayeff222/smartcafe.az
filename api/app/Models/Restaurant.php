@@ -32,6 +32,7 @@ class Restaurant extends Model
         'is_psclub',
         'close_time',
         'ui_settings',
+        'package_id',
     ];
 
     protected $casts = [
@@ -101,6 +102,24 @@ class Restaurant extends Model
     public function webSetting()
     {
         return $this->hasOne(RestaurantWebSetting::class);
+    }
+
+    public function package()
+    {
+        return $this->belongsTo(WebsitePackage::class, 'package_id');
+    }
+
+    public function telegramSetting()
+    {
+        return $this->hasOne(RestaurantTelegramSetting::class);
+    }
+
+    public function hasTelegramBotFeature(): bool
+    {
+        $this->loadMissing('package');
+        $limits = $this->package?->limits ?? [];
+
+        return (bool) ($limits['telegram_bot'] ?? false);
     }
 
 }

@@ -147,7 +147,11 @@ class RestaurantController extends Controller
             return response()->json(['message' => 'No restaurant associated with this user.'], 404);
         }
 
-        return response()->json($restaurant);
+        $restaurant->loadMissing('package');
+        $payload = $restaurant->toArray();
+        $payload['telegram_bot_available'] = $restaurant->hasTelegramBotFeature();
+
+        return response()->json($payload);
     }
 
     /**

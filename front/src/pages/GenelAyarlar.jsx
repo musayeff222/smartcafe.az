@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { pageTitle } from "../config/branding";
 import axios from "axios";
 import AccessDenied from "../components/AccessDenied";
@@ -13,8 +14,9 @@ import SecurityPasswordSettings from "../components/SecurityPasswordSettings";
 import LanguageSettings from "../components/LanguageSettings";
 import WebSettingsTab from "../components/WebSettingsTab";
 import AppearanceSettingsTab from "../components/AppearanceSettingsTab";
+import TelegramBotSettings from "../components/TelegramBotSettings";
 import { useLanguage } from "../i18n/LanguageContext";
-import { Settings, ShieldCheck, Languages, ChevronRight, Image, Printer, Palette, Globe, Layout } from "lucide-react";
+import { Settings, ShieldCheck, Languages, ChevronRight, Image, Printer, Palette, Globe, Layout, Bot } from "lucide-react";
 import { toast } from "react-toastify";
 // Get auth headers from local storage
 const getAuthHeaders = () => {
@@ -30,9 +32,12 @@ const getAuthHeaders = () => {
 
 const GenelAyarlar = () => {
   const { t } = useLanguage();
+  const [searchParams] = useSearchParams();
   const [isOn, setIsOn] = useState(false);
   const [activeGroup, setActiveGroup] = useState(() => {
     try {
+      const fromUrl = new URLSearchParams(window.location.search).get("group");
+      if (fromUrl === "telegram" || fromUrl === "sifre" || fromUrl === "ayarlar") return fromUrl;
       return localStorage.getItem("genel_ayarlar_group") || "ayarlar";
     } catch (e) {
       return "ayarlar";
@@ -45,6 +50,13 @@ const GenelAyarlar = () => {
       localStorage.setItem("genel_ayarlar_group", key);
     } catch (e) {}
   };
+
+  useEffect(() => {
+    const g = searchParams.get("group");
+    if (g === "telegram" || g === "sifre" || g === "ayarlar") {
+      setActiveGroup(g);
+    }
+  }, [searchParams]);
 
   const [formData, setFormData] = useState({
     logo: null,
@@ -246,6 +258,12 @@ const GenelAyarlar = () => {
                     icon: ShieldCheck,
                   },
                   {
+                    key: "telegram",
+                    label: t("settings.tabTelegram"),
+                    desc: t("settings.tabTelegramDesc"),
+                    icon: Bot,
+                  },
+                  {
                     key: "dil",
                     label: t("settings.tabLanguage"),
                     desc: t("settings.tabLanguageDesc"),
@@ -318,6 +336,10 @@ const GenelAyarlar = () => {
               {activeGroup === "sifre" ? (
                 <div className="p-4 sm:p-6">
                   <SecurityPasswordSettings />
+                </div>
+              ) : activeGroup === "telegram" ? (
+                <div className="p-4 sm:p-6">
+                  <TelegramBotSettings />
                 </div>
               ) : activeGroup === "dil" ? (
                 <div className="p-4 sm:p-6">

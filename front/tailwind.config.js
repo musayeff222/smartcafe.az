@@ -36,6 +36,19 @@ module.exports = {
         pos: ["Manrope", "system-ui", "sans-serif"],
         "pos-mono": ["JetBrains Mono", "ui-monospace", "monospace"],
       },
+      boxShadow: {
+        "admin-sm": "0 1px 2px rgba(15, 23, 42, 0.06)",
+        "admin-lg": "0 18px 40px rgba(15, 23, 42, 0.16)",
+      },
+      keyframes: {
+        "sc-in": {
+          "0%": { opacity: "0", transform: "translateY(8px) scale(0.98)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+      },
+      animation: {
+        "sc-in": "sc-in 160ms ease-out",
+      },
     },
   },
   plugins: [],

@@ -14,6 +14,8 @@ const ACTIVITY_EVENTS = ["mousedown", "mousemove", "keydown", "touchstart", "cli
 
 const isPublicPosRoute = (pathname) =>
   pathname === "/login" ||
+  pathname.startsWith("/forgot-password") ||
+  pathname.startsWith("/reset-password") ||
   pathname.startsWith("/adminPage") ||
   pathname.startsWith("/order-details") ||
   pathname.startsWith("/menu") ||

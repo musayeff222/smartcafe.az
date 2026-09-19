@@ -89,6 +89,7 @@ export function getScreenLockIdleSeconds(settings) {
 }
 
 export function pathToPageKey(pathname) {
-  const page = UI_PAGES.find((p) => pathname === p.path || pathname.startsWith(`${p.path}/`));
+  const clean = String(pathname || "").split("?")[0].split("#")[0];
+  const page = UI_PAGES.find((p) => clean === p.path || clean.startsWith(`${p.path}/`));
   return page?.key || null;
 }
